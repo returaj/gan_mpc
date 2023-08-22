@@ -24,6 +24,7 @@ class ExpertModel:
         time = time or self.config.mpc.horizon
 
         def body(carry, pos):
+            del pos
             x = carry
             u, next_x = self.get_goal_state_and_init_action(x, params)
             return next_x, (u, next_x)

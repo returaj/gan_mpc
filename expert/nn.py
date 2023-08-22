@@ -35,6 +35,6 @@ class StateActionNN(MLP, base.BaseNN):
         q = x
         for _ in range(self.num_layers):
             q = nn.relu(nn.Dense(self.num_hidden_units)(q))
-        u = self.action_model(q)
+        u = nn.tanh(self.action_model(q))  # u \in (-1, 1)
         next_x = x + self.state_model(q)
         return (u, next_x)

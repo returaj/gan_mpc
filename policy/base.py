@@ -7,7 +7,6 @@ import jax.numpy as jnp
 
 from gan_mpc.policy import optimizer as opt
 
-
 TRAJAX_iLQR_KWARGS = {
     "maxiter": 100,
     "grad_norm_threshold": 1e-4,
@@ -98,9 +97,9 @@ class BaseMPC:
             dynamics_args = ()
             (
                 high_level_loss,
-                low_level_grad,
+                _,
                 high_level_grad,
-                itr,
+                _,
             ) = opt.bilevel_optimization(
                 self.cost,
                 self.dynamics,
