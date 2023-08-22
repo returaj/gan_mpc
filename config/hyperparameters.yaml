@@ -1,0 +1,15 @@
+expert:
+  env: "cartpole-balance"
+  model:
+    num_layers: 
+    state_predict:
+      num_layers: 2
+      num_hidden_units: 128
+    action_predict:
+      num_layers: 2
+      num_hidden_units: 128
+
+imitator:
+  env: "cartpole-balance"
+
+
