@@ -15,12 +15,12 @@ class ExpertModel:
         model_args = self.model.get_init_params(*args)
         return self.model.init(*model_args)
 
-    def get_goal_state_and_init_action(self, x, params):
+    def get_action_and_next_state(self, x, params):
         u, next_x = self.model.apply(params, x)
         return (u, next_x)
 
     @functools.partial(jax.jit, static_argnums=(0,))
-    def get_time_based_goal_states_and_init_actions(self, x, params, time=None):
+    def get_action_and_next_state_seq(self, x, params, time=None):
         time = time or self.config.mpc.horizon
 
         def body(carry, pos):
