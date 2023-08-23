@@ -26,7 +26,7 @@ class ExpertModel:
         def body(carry, pos):
             del pos
             x = carry
-            u, next_x = self.get_goal_state_and_init_action(x, params)
+            u, next_x = self.get_action_and_next_state(x, params)
             return next_x, (u, next_x)
 
         _, (U, next_X) = jax.lax.scan(body, x, jnp.arange(time))

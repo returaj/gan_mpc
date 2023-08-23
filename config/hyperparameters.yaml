@@ -28,16 +28,17 @@ expert_prediction:
     mlp:
       num_layers: 2
       num_hidden_units: 128
-      state_prediction:
+      state:
         num_layers: 2
         num_hidden_units: 128
-      action_prediction:
+      action:
         num_layers: 2
         num_hidden_units: 128
   train:
     num_epochs: 10
     batch_size: 64
     learning_rate: 1e-4
+    discount_factor: 0.8
 
 
 train:
