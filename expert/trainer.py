@@ -33,12 +33,18 @@ def train_epoch(trainstate, perm, dataset, discount_factor):
             pred_a, pred_next_s = trainstate.apply_fn(params, batch_s)
             u_diff_squared = (batch_a - pred_a) ** 2
             u_loss = jnp.mean(
-                jnp.sum(batch_discount_sum_fn(u_diff_squared, discount_factor), axis=1)
+                jnp.sum(
+                    batch_discount_sum_fn(u_diff_squared, discount_factor),
+                    axis=1,
+                )
             )
             next_s_diff_squared = (batch_next_s - pred_next_s) ** 2
             next_s_loss = jnp.mean(
                 jnp.sum(
-                    batch_discount_sum_fn(next_s_diff_squared, discount_factor), axis=1
+                    batch_discount_sum_fn(
+                        next_s_diff_squared, discount_factor
+                    ),
+                    axis=1,
                 )
             )
             return u_loss + next_s_loss
@@ -47,12 +53,20 @@ def train_epoch(trainstate, perm, dataset, discount_factor):
         trainstate = trainstate.apply_gradients(grads=grads)
         return trainstate, loss
 
-    trainstate, batch_loss = jax.lax.scan(body, trainstate, jnp.arange(steps_per_epoch))
+    trainstate, batch_loss = jax.lax.scan(
+        body, trainstate, jnp.arange(steps_per_epoch)
+    )
     return trainstate, jnp.mean(batch_loss)
 
 
 def train(
-    trainstate, dataset, num_epochs, batch_size, key, discount_factor, print_step=10
+    trainstate,
+    dataset,
+    num_epochs,
+    batch_size,
+    key,
+    discount_factor,
+    print_step=10,
 ):
     train_data, _ = dataset
     datasize = train_data[0].shape[0]
@@ -64,7 +78,9 @@ def train(
             subkey, datasize, shape=(steps_per_epoch * batch_size,)
         )
         perm = perm.reshape((steps_per_epoch, batch_size))
-        train_state, loss = train_epoch(trainstate, perm, train_data, discount_factor)
+        train_state, loss = train_epoch(
+            trainstate, perm, train_data, discount_factor
+        )
         if (ep % print_step) == 0:
             print(f"epoch: {ep} training_loss: {loss:.3f}")
         epoch_loss.append(loss)
