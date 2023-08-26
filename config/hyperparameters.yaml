@@ -5,9 +5,9 @@ seed: 0
 env:
   type: "dmcontrol"  # options: dmcontrol, brax
   expert:
-    name: "cartpole-balance"
+    name: "cartpole_balance"
   imitator:
-    name: "cartpole-balance"
+    name: "cartpole_balance"
 
 
 mpc:
@@ -28,12 +28,21 @@ expert_prediction:
     mlp:
       num_layers: 3
       num_hidden_units: 128
+      use: false
+    lstm:
+      lstm_features: 128
+      num_layers: 3
+      num_hidden_units: 128
+      use: true
 
   train:
     num_epochs: 10
     batch_size: 64
+    seqlen: 10
     learning_rate: 1e-4
-    discount_factor: 0.8
+    discount_factor: 0.9
+    teacher_forcing_factor: 0.7
+    print_step: 10
 
 
 train:

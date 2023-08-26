@@ -1,11 +1,18 @@
 """other codes."""
 
+import json
+import os
+
 import numpy as np
 from dm_control import suite
 
+from gan_mpc.config import load_config
+
+_MAIN_DIR_PATH = os.path.dirname(__file__)
+
 
 def get_dm_expert_env(name):
-    domain, task = name.split("-")
+    domain, task = name.split("_")
     return suite.load(domain, task)
 
 
@@ -39,3 +46,26 @@ def flatten_tree_obs(obs):
         v = np.array([v]) if np.isscalar(v) else np.ravel(v)
         flattern.append(v)
     return np.concatenate(flattern)
+
+
+def get_config(config_path=None):
+    config_path = config_path or os.path.join(
+        _MAIN_DIR_PATH, "config/hyperparameters.yaml"
+    )
+    return load_config.Config.from_yaml(config_path)
+
+
+def get_expert_trajectories(config, num_trajectories=50, path=None):
+    env_type, env_name = config.env.type, config.env.expert.name
+    path = path or os.path.join(
+        _MAIN_DIR_PATH,
+        f"expert_trajectories/{env_type}/{env_name}/trajectories.json",
+    )
+    with open(path, "r") as fp:
+        data = json.load(fp)
+    return data[:num_trajectories]
+
+
+def save_model(model, model_config, train_config, dir_path):
+    # TODO(returaj) implement this
+    raise NotImplementedError
