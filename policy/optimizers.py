@@ -15,7 +15,9 @@ def ilqr_solve(
     def wrapped_dynamics(x, u, t):
         return dynamics(x, u, t, params, *dynamics_args)
 
-    return trajax_opt.ilqr(wrapped_cost, wrapped_dynamics, x0, U, **trajax_ilqr_kwargs)
+    return trajax_opt.ilqr(
+        wrapped_cost, wrapped_dynamics, x0, U, **trajax_ilqr_kwargs
+    )
 
 
 @functools.partial(jax.jit, static_argnums=(0, 1, 2))
@@ -43,15 +45,17 @@ def bilevel_optimization(
         wrapped_cost, wrapped_dynamics, x0, U, **trajax_ilqr_kwargs
     )
 
-    B = loss_grad_wrt_control(loss, wrapped_dynamics, x0, U, loss_args).reshape(
-        (T * m,)
-    )
-    A = cost_hessian_wrt_control(wrapped_cost, wrapped_dynamics, x0, U).reshape(
-        (T * m, T * m)
-    )
+    B = loss_grad_wrt_control(
+        loss, wrapped_dynamics, x0, U, loss_args
+    ).reshape((T * m,))
+    A = cost_hessian_wrt_control(
+        wrapped_cost, wrapped_dynamics, x0, U
+    ).reshape((T * m, T * m))
     H = jax.scipy.linalg.solve(A, B).reshape((T * m,))
 
-    high_level_grad = cost_vjp(cost, wrapped_dynamics, H, x0, U, params, cost_args)
+    high_level_grad = cost_vjp(
+        cost, wrapped_dynamics, H, x0, U, params, cost_args
+    )
 
     high_level_loss = loss(X, U, *loss_args)
 

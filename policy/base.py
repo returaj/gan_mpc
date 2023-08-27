@@ -7,7 +7,6 @@ import jax.numpy as jnp
 
 from gan_mpc.policy import optimizer as opt
 
-
 TRAJAX_iLQR_KWARGS = {
     "maxiter": 100,
     "grad_norm_threshold": 1e-4,
@@ -73,7 +72,9 @@ class BaseMPC:
     def cost(self, x, u, t, params, *args):
         mpc_weights = params["mpc_weights"]
         cost_params = params["cost_params"]
-        return self.cost_model.get_cost(x, u, t, cost_params, mpc_weights, *args)
+        return self.cost_model.get_cost(
+            x, u, t, cost_params, mpc_weights, *args
+        )
 
     def dynamics(self, x, u, t, params, *args):
         dynamics_params = params["dynamics_params"]
@@ -81,7 +82,10 @@ class BaseMPC:
 
     def get_goal_states_and_init_actions(self, x, params):
         expert_params = params["expert_params"]
-        init_U, goal_X = self.expert_model.get_time_based_goal_states_and_init_actions(
+        (
+            init_U,
+            goal_X,
+        ) = self.expert_model.get_time_based_goal_states_and_init_actions(
             x, expert_params
         )
         return init_U, goal_X
@@ -98,9 +102,9 @@ class BaseMPC:
             dynamics_args = ()
             (
                 high_level_loss,
-                low_level_grad,
+                _,
                 high_level_grad,
-                itr,
+                _,
             ) = opt.bilevel_optimization(
                 self.cost,
                 self.dynamics,
@@ -116,7 +120,9 @@ class BaseMPC:
             return (high_level_loss, high_level_grad)
 
         in_axes = (0, None) + loss_vmap
-        vloss, vgrads = jax.vmap(func, in_axes=in_axes)(X, params, *batch_loss_args)
+        vloss, vgrads = jax.vmap(func, in_axes=in_axes)(
+            X, params, *batch_loss_args
+        )
         avg_loss = jnp.mean(vloss)
         net_grads = jax.tree_map(lambda x: jnp.mean(x, axis=0), vgrads)
         return avg_loss, net_grads

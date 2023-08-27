@@ -15,18 +15,21 @@ class ExpertModel:
         model_args = self.model.get_init_params(*args)
         return self.model.init(*model_args)
 
-    def get_goal_state_and_init_action(self, x, params):
-        u, next_x = self.model.apply(params, x)
-        return (u, next_x)
-
     @functools.partial(jax.jit, static_argnums=(0,))
-    def get_time_based_goal_states_and_init_actions(self, x, params, time=None):
-        time = time or self.config.mpc.horizon
+    def get_next_state_and_action_seq(
+        self, xseq, params, teacher_forcing=False
+    ):
+        """
+        xseq: (seqlen, xdim)
+        params: model's parameters
+        teacher_forcing: bool
+        """
 
-        def body(carry, pos):
-            x = carry
-            u, next_x = self.get_goal_state_and_init_action(x, params)
-            return next_x, (u, next_x)
-
-        _, (U, next_X) = jax.lax.scan(body, x, jnp.arange(time))
-        return (U, jnp.vstack((x, next_X)))
+        batch_xseq = jnp.expand_dims(xseq, axis=0)
+        batch_next_xseq, batch_useq = self.model.apply(
+            params, batch_xseq, teacher_forcing
+        )
+        # next_xseq contains xseq value at t=0. dim (seqlen, xdim+1)
+        next_xseq = jnp.vstack([xseq[0], batch_next_xseq[0]])
+        useq = batch_useq[0]
+        return next_xseq, useq
