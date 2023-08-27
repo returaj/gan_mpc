@@ -12,8 +12,8 @@ def discounted_sum(mat, gamma):
         discount *= gamma
         return (curr_sum, discount)
 
-    length = mat.shape[0]
-    curr_sum, _ = jax.lax.fori_loop(0, length, body, (0, 1.0))
+    length, m_size = mat.shape
+    curr_sum, _ = jax.lax.fori_loop(0, length, body, (jnp.zeros(m_size), 1.0))
     return curr_sum
 
 
@@ -45,11 +45,9 @@ def calculate_loss(
 @jax.jit
 def train_epoch(trainstate, perm, dataset, discount_factor, teacher_forcing):
     s, a, next_s = dataset
-    steps_per_epoch = perm.shape[0]
 
     @jax.jit
-    def body(trainstate, t):
-        p = perm[t]
+    def body(trainstate, p):
         batch_dataset = s[p], a[p], next_s[p]
 
         def loss_fn(params):
@@ -65,9 +63,7 @@ def train_epoch(trainstate, perm, dataset, discount_factor, teacher_forcing):
         trainstate = trainstate.apply_gradients(grads=grads)
         return trainstate, loss
 
-    trainstate, batch_loss = jax.lax.scan(
-        body, trainstate, jnp.arange(steps_per_epoch)
-    )
+    trainstate, batch_loss = jax.lax.scan(body, trainstate, perm)
     return trainstate, jnp.mean(batch_loss)
 
 
@@ -85,9 +81,9 @@ def train(
     datasize = train_data[0].shape[0]
     steps_per_epoch = datasize // batch_size
     epoch_loss = []
-    for ep in range(1, num_epochs):
+    for ep in range(1, num_epochs + 1):
         key, subkey = jax.random.split(key)
-        perm = jnp.random.choice(
+        perm = jax.random.choice(
             subkey, datasize, shape=(steps_per_epoch, batch_size)
         )
         teacher_forcing = ep >= (num_epochs * teacher_forcing_factor)

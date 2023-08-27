@@ -21,14 +21,10 @@ def get_train_dataset(config, dataset_path=None, train_split=0.8):
         _, adim = a_traj.shape
         num_elems = (traj_len - 1) // seqlen
         valid_size = num_elems * seqlen
-        states.append(
-            s_traj[:valid_size].reshape((num_elems, valid_size, sdim))
-        )
-        actions.append(
-            a_traj[:valid_size].reshape((num_elems, valid_size, adim))
-        )
+        states.append(s_traj[:valid_size].reshape((num_elems, seqlen, sdim)))
+        actions.append(a_traj[:valid_size].reshape((num_elems, seqlen, adim)))
         next_states.append(
-            s_traj[1 : (valid_size + 1)].reshape((num_elems, valid_size, sdim))
+            s_traj[1 : (valid_size + 1)].reshape((num_elems, seqlen, sdim))
         )
     states = jnp.concatenate(states, axis=0)
     actions = jnp.concatenate(actions, axis=0)
@@ -52,35 +48,38 @@ def get_train_dataset(config, dataset_path=None, train_split=0.8):
 
 
 def get_trainstate(model, params, tx):
-    def predict_fn(params, batch_s, *args):
-        carry = model.get_init_carry(batch_s)
-        return model.apply(params, carry, batch_s, *args)
-
     return train_state.TrainState.create(
-        apply_fn=predict_fn, params=params, tx=tx
+        apply_fn=model.apply, params=params, tx=tx
     )
 
 
 def get_model(config, state_size, action_size):
     expert_model_config = config.expert_prediction.model
-    model_config = expert_model_config.mlp
-    if not model_config.use:
+    if expert_model_config.lstm.use:
         model_config = expert_model_config.lstm
-    model = expert_nn.ScanLSTM(
-        lstm_features=model_config.lstm_features,
-        num_layers=model_config.num_layers,
-        num_hidden_units=model_config.num_hidden_units,
-        x_out=state_size,
-        u_out=action_size,
-    )
+        model = expert_nn.ScanLSTM(
+            lstm_features=model_config.lstm_features,
+            num_layers=model_config.num_layers,
+            num_hidden_units=model_config.num_hidden_units,
+            x_out=state_size,
+            u_out=action_size,
+        )
+    elif expert_model_config.mlp.use:
+        model_config = expert_model_config.mlp
+        model = expert_nn.ScanMLP(
+            num_layers=model_config.num_layers,
+            num_hidden_units=model_config.num_hidden_units,
+            x_out=state_size,
+            u_out=action_size,
+        )
+    else:
+        raise ValueError("Choose either mlp or lstm model.")
     return expert_nn.StateAction(model), expert_model_config
 
 
 def get_params(config, model, state_size):
     seed = config.seed
-    batch_size = config.expert_prediction.train.batch_size
-    seqlen = config.expert_prediction.train.seqlen
-    args = model.get_init_params(seed, batch_size, seqlen, state_size)
+    args = model.get_init_params(seed, 1, 1, state_size)
     return model.init(*args)
 
 
@@ -109,14 +108,18 @@ def run(config_path=None):
         dataset=dataset,
         num_epochs=train_config.num_epochs,
         batch_size=train_config.batch_size,
+        key=jax.random.PRNGKey(config.seed),
         discount_factor=train_config.discount_factor,
         teacher_forcing_factor=train_config.teacher_forcing_factor,
         print_step=train_config.print_step,
     )
 
-    loss = {train_loss: round(train_loss, 5), test_loss: round(test_loss, 5)}
+    loss = {
+        "train_loss": round(float(train_loss), 5),
+        "test_loss": round(float(test_loss), 5),
+    }
 
-    dir_path = f"trained_models/expert/{env_type}/{env_name}/model"
+    dir_path = f"trained_models/expert/{env_type}/{env_name}/"
     utils.save_model(trainstate, model_config, train_config, loss, dir_path)
 
 

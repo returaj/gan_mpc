@@ -39,7 +39,7 @@ expert_prediction:
     num_epochs: 10
     batch_size: 64
     seqlen: 10
-    learning_rate: 1e-4
+    learning_rate: 1.0e-4
     discount_factor: 0.9
     teacher_forcing_factor: 0.7
     print_step: 10
@@ -49,4 +49,4 @@ train:
   num_trajectories: 50
   num_epochs: 10
   batch_size: 64
-  learning_rate: 1e-4
+  learning_rate: 1.0e-4

@@ -52,9 +52,12 @@ class LSTMCell(nn.Module):
         teacher_forcing, lstm_carry, xprev = carry
         x = jnp.where(teacher_forcing, x, xprev)
         lstm_carry, y = nn.OptimizedLSTMCell(self.lstm_features)(lstm_carry, x)
-        _, (next_x, u) = StackedMLPCell(
-            self.num_layers, self.num_hidden_units, self.x_out, self.u_out
-        )((False, y), y)
+        next_x = (
+            MLPCell(self.num_layers, self.num_hidden_units, self.x_out)(y) + x
+        )
+        u = nn.tanh(
+            MLPCell(self.num_layers, self.num_hidden_units, self.u_out)(y)
+        )
         return (teacher_forcing, lstm_carry, next_x), (next_x, u)
 
 
@@ -64,7 +67,7 @@ class ScanMLP(nn.Module):
     x_out: int
     u_out: int
 
-    def initialize_carry(self, batch_xseq):
+    def get_init_carry(self, batch_xseq):
         return (batch_xseq[:, 0],)
 
     @nn.compact
@@ -96,16 +99,16 @@ class ScanMLP(nn.Module):
 class ScanLSTM(ScanMLP):
     lstm_features: int
 
-    def initialize_carry(self, batch_xseq):
+    def get_init_carry(self, batch_xseq):
         """
         batch_xseq: (batch_size, seq, xdim)
         """
 
         key = jax.random.PRNGKey(0)  # fix seed 0
-        lstm_carry = nn.LSTMCell(self.lstm_features).initialize_carry(
-            key, batch_xseq[:, 0].shape
-        )
         batch_xprev = batch_xseq[:, 0]
+        lstm_carry = nn.OptimizedLSTMCell(
+            self.lstm_features, parent=None
+        ).initialize_carry(key, input_shape=batch_xprev.shape)
         return (lstm_carry, batch_xprev)
 
     @nn.compact
@@ -140,7 +143,7 @@ class StateAction(nn.Module, base.BaseNN):
     model: ScanMLP
 
     def get_init_carry(self, input):
-        return self.model.initialize_carry(input)
+        return self.model.get_init_carry(input)
 
     def get_init_params(self, seed, batch_size, seqlen, x_size):
         key = jax.random.PRNGKey(seed)
@@ -148,12 +151,11 @@ class StateAction(nn.Module, base.BaseNN):
         return key, dummy_x
 
     @nn.compact
-    def __call__(self, carry, batch_xseq, teacher_forcing=True):
+    def __call__(self, batch_xseq, teacher_forcing=True):
         """
-        carry: it depends if it is mlp (see ScanMLP) or lstm (see ScanLSTM) based.
         batch_xseq: (batch_size, seq, xdim)
         teacher_forcing: bool
         """
 
-        # carry = self.get_init_carry(batch_xseq)
+        carry = self.get_init_carry(batch_xseq)
         return self.model(carry, batch_xseq, teacher_forcing)

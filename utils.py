@@ -2,7 +2,6 @@
 
 import json
 import os
-import re
 
 import numpy as np
 import orbax
@@ -74,7 +73,7 @@ def get_expert_trajectories(config, num_trajectories=50, path=None):
 
 def check_or_create_dir(path):
     if not os.path.exists(path=path):
-        os.mkdir(path=path)
+        os.makedirs(path, exist_ok=True)
 
 
 def save_json(data, dir_path, basename):
@@ -95,11 +94,8 @@ def save_flax_trainstate(ckpt, dir_path, basename):
 def save_model(model, model_config, train_config, loss_dict, dir_path):
     abs_dir_path = os.path.join(_MAIN_DIR_PATH, dir_path)
     check_or_create_dir(abs_dir_path)
-    dir_list = sorted(
-        filter(lambda e: re.match("r^\d+$", str(e)), os.listdir(abs_dir_path)),
-        key=lambda x: -int(x),
-    )
-    key = "0" if dir_list else f"{int(dir_list[0]) + 1}"
+    dir_list = sorted(os.listdir(abs_dir_path), key=lambda x: -int(x))
+    key = "0" if not dir_list else f"{int(dir_list[0]) + 1}"
     full_path = os.path.join(abs_dir_path, key)
 
     json_config = {
