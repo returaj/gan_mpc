@@ -88,9 +88,8 @@ def train(
     for ep in range(1, num_epochs):
         key, subkey = jax.random.split(key)
         perm = jnp.random.choice(
-            subkey, datasize, shape=(steps_per_epoch * batch_size,)
+            subkey, datasize, shape=(steps_per_epoch, batch_size)
         )
-        perm = perm.reshape((steps_per_epoch, batch_size))
         teacher_forcing = ep >= (num_epochs * teacher_forcing_factor)
         trainstate, train_loss = train_epoch(
             trainstate, perm, train_data, discount_factor, teacher_forcing

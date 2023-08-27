@@ -1,5 +1,7 @@
 """runner code for expert prediction model."""
 
+import jax
+import jax.numpy as jnp
 import optax
 from flax.training import train_state
 
@@ -8,10 +10,45 @@ from gan_mpc.expert import nn as expert_nn
 from gan_mpc.expert import trainer
 
 
-def get_train_dataset(config, dataset_path=None):
-    # TODO(returaj) implement this
+def get_train_dataset(config, dataset_path=None, train_split=0.8):
     trajectories = utils.get_expert_trajectories(config, dataset_path)
-    raise NotImplementedError
+
+    s_trajs, a_trajs = trajectories["states"], trajectories["actions"]
+    seqlen = config.expert_prediction.train.seqlen
+    states, actions, next_states = [], [], []
+    for s_traj, a_traj in zip(s_trajs, a_trajs):
+        traj_len, sdim = s_traj.shape
+        _, adim = a_traj.shape
+        num_elems = (traj_len - 1) // seqlen
+        valid_size = num_elems * seqlen
+        states.append(
+            s_traj[:valid_size].reshape((num_elems, valid_size, sdim))
+        )
+        actions.append(
+            a_traj[:valid_size].reshape((num_elems, valid_size, adim))
+        )
+        next_states.append(
+            s_traj[1 : (valid_size + 1)].reshape((num_elems, valid_size, sdim))
+        )
+    states = jnp.concatenate(states, axis=0)
+    actions = jnp.concatenate(actions, axis=0)
+    next_states = jnp.concatenate(next_states, axis=0)
+
+    data_size = states.shape[0]
+    split_pos = int(train_split * data_size)
+    key = jax.random.PRNGKey(config.seed)
+    perm = jax.random.permutation(key, data_size)
+    train_dataset = (
+        states[perm[:split_pos]],
+        actions[perm[:split_pos]],
+        next_states[perm[:split_pos]],
+    )
+    test_dataset = (
+        states[perm[split_pos:]],
+        actions[perm[split_pos:]],
+        next_states[perm[split_pos:]],
+    )
+    return train_dataset, test_dataset
 
 
 def get_trainstate(model, params, tx):

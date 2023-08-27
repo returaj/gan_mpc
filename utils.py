@@ -66,7 +66,10 @@ def get_expert_trajectories(config, num_trajectories=50, path=None):
     )
     with open(path, "r") as fp:
         data = json.load(fp)
-    return data[:num_trajectories]
+    sample_data = {}
+    for k, v in data.items():
+        sample_data[k] = np.array(v[:num_trajectories])
+    return sample_data
 
 
 def check_or_create_dir(path):
