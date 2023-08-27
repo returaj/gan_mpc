@@ -148,12 +148,12 @@ class StateAction(nn.Module, base.BaseNN):
         return key, dummy_x
 
     @nn.compact
-    def __call__(self, batch_xseq, teacher_forcing=True):
+    def __call__(self, carry, batch_xseq, teacher_forcing=True):
         """
         carry: it depends if it is mlp (see ScanMLP) or lstm (see ScanLSTM) based.
-        xseq: (batch_size, seq, xdim)
+        batch_xseq: (batch_size, seq, xdim)
         teacher_forcing: bool
         """
 
-        carry = self.get_init_carry(batch_xseq)
+        # carry = self.get_init_carry(batch_xseq)
         return self.model(carry, batch_xseq, teacher_forcing)

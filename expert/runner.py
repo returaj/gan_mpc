@@ -52,8 +52,12 @@ def get_train_dataset(config, dataset_path=None, train_split=0.8):
 
 
 def get_trainstate(model, params, tx):
+    def predict_fn(params, batch_s, *args):
+        carry = model.get_init_carry(batch_s)
+        return model.apply(params, carry, batch_s, *args)
+
     return train_state.TrainState.create(
-        apply_fn=model.apply, params=params, tx=tx
+        apply_fn=predict_fn, params=params, tx=tx
     )
 
 
