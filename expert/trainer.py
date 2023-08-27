@@ -17,7 +17,7 @@ def discounted_sum(mat, gamma):
     return curr_sum
 
 
-# @jax.jit
+@jax.jit
 def calculate_loss(
     trainstate, params, dataset, discount_factor, teacher_forcing
 ):
@@ -107,4 +107,16 @@ def train(
                 f"epoch: {ep} training_loss: {train_loss:.4f} test_loss: {test_loss:.4f}"
             )
         epoch_loss.append(train_loss)
-    return trainstate, epoch_loss
+
+    test_loss = calculate_loss(
+        trainstate,
+        trainstate.params,
+        test_data,
+        discount_factor,
+        teacher_forcing=False,
+    )
+    return (
+        trainstate,
+        epoch_loss[-1],
+        test_loss,
+    )

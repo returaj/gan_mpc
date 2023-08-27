@@ -1,7 +1,5 @@
 """runner code for expert prediction model."""
 
-import jax
-import jax.numpy as jnp
 import optax
 from flax.training import train_state
 
@@ -65,7 +63,7 @@ def run(config_path=None):
     dataset = get_train_dataset(config)
 
     train_config = config.expert_prediction.train
-    trainstate, _ = trainer.train(
+    trainstate, train_loss, test_loss = trainer.train(
         trainstate=trainstate,
         dataset=dataset,
         num_epochs=train_config.num_epochs,
@@ -75,5 +73,11 @@ def run(config_path=None):
         print_step=train_config.print_step,
     )
 
+    loss = {train_loss: round(train_loss, 5), test_loss: round(test_loss, 5)}
+
     dir_path = f"trained_models/expert/{env_type}/{env_name}/model"
-    utils.save_model(trainstate, model_config, train_config, dir_path)
+    utils.save_model(trainstate, model_config, train_config, loss, dir_path)
+
+
+if __name__ == "__main__":
+    run()

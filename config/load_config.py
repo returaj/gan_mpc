@@ -32,3 +32,12 @@ class Config:
                 value = Config.from_dict(value)
             setattr(config, name, value)
         return config
+
+    def to_dict(self):
+        ret = {}
+        attribute_dict = self.__dict__
+        for k, v in attribute_dict.items():
+            if isinstance(v, Config):
+                v = v.to_dict()
+            ret[k] = v
+        return ret

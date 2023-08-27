@@ -2,9 +2,12 @@
 
 import json
 import os
+import re
 
 import numpy as np
+import orbax
 from dm_control import suite
+from flax.training import orbax_utils
 
 from gan_mpc.config import load_config
 
@@ -66,6 +69,42 @@ def get_expert_trajectories(config, num_trajectories=50, path=None):
     return data[:num_trajectories]
 
 
-def save_model(model, model_config, train_config, dir_path):
-    # TODO(returaj) implement this
-    raise NotImplementedError
+def check_or_create_dir(path):
+    if not os.path.exists(path=path):
+        os.mkdir(path=path)
+
+
+def save_json(data, dir_path, basename):
+    check_or_create_dir(dir_path)
+    with open(os.path.join(dir_path, basename), "w") as fp:
+        json.dump(data, fp, indent=4, sort_keys=True)
+
+
+def save_flax_trainstate(ckpt, dir_path, basename):
+    check_or_create_dir(dir_path)
+    orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
+    save_args = orbax_utils.save_args_from_target(ckpt)
+    orbax_checkpointer.save(
+        os.path.join(dir_path, basename), ckpt, save_args=save_args
+    )
+
+
+def save_model(model, model_config, train_config, loss_dict, dir_path):
+    abs_dir_path = os.path.join(_MAIN_DIR_PATH, dir_path)
+    check_or_create_dir(abs_dir_path)
+    dir_list = sorted(
+        filter(lambda e: re.match("r^\d+$", str(e)), os.listdir(abs_dir_path)),
+        key=lambda x: -int(x),
+    )
+    key = "0" if dir_list else f"{int(dir_list[0]) + 1}"
+    full_path = os.path.join(abs_dir_path, key)
+
+    json_config = {
+        "loss": loss_dict,
+        "model": model_config.to_dict(),
+        "train": train_config.to_dict(),
+    }
+    ckpt = {"model": model, "config": json_config}
+
+    save_json(json_config, full_path, "config.json")
+    save_flax_trainstate(ckpt, full_path, "model")
