@@ -31,7 +31,7 @@ class MLP(nn.Module, base.BaseDynamicsNN):
         for _ in range(self.num_layers - 1):
             q = nn.relu(nn.Dense(self.num_hidden_units)(q))
         next_x = nn.Dense(self.x_out)(q) + x
-        return carry, next_x
+        return jnp.concatenate([next_x, carry], axis=-1)
 
 
 class LSTM(MLP):
