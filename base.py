@@ -31,3 +31,8 @@ class BaseNN:
 class BaseCostNN(BaseNN):
     def get_cost(self, *args):
         raise NotImplementedError
+
+
+class BaseDynamicsNN(BaseNN):
+    def get_carry(self, *args):
+        raise NotImplementedError

@@ -1,7 +1,5 @@
 """Dynamics model for GAN-MPC."""
 
-import jax.numpy as jnp
-
 from gan_mpc import base
 
 
