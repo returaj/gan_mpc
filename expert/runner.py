@@ -55,7 +55,7 @@ def get_trainstate(model, params, tx):
 
 def get_model(config, state_size, action_size):
     expert_model_config = config.expert_prediction.model
-    if expert_model_config.lstm.use:
+    if expert_model_config.use == "lstm":
         model_config = expert_model_config.lstm
         model = expert_nn.ScanLSTM(
             lstm_features=model_config.lstm_features,
@@ -64,7 +64,7 @@ def get_model(config, state_size, action_size):
             x_out=state_size,
             u_out=action_size,
         )
-    elif expert_model_config.mlp.use:
+    elif expert_model_config.use == "mlp":
         model_config = expert_model_config.mlp
         model = expert_nn.ScanMLP(
             num_layers=model_config.num_layers,

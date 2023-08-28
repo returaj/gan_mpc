@@ -25,15 +25,14 @@ mpc:
 
 expert_prediction:
   model:
+    use: "lstm"
     mlp:
       num_layers: 3
       num_hidden_units: 128
-      use: false
     lstm:
       lstm_features: 128
       num_layers: 3
       num_hidden_units: 128
-      use: true
 
   train:
     num_epochs: 10
