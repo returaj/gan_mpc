@@ -5,7 +5,7 @@ import functools
 import jax
 import jax.numpy as jnp
 
-from gan_mpc.policy import optimizer as opt
+from gan_mpc.policy import optimizers as opt
 
 TRAJAX_iLQR_KWARGS = {
     "maxiter": 100,
@@ -82,13 +82,10 @@ class BaseMPC:
 
     def get_goal_states_and_init_actions(self, x, params):
         expert_params = params["expert_params"]
-        (
-            init_U,
-            goal_X,
-        ) = self.expert_model.get_time_based_goal_states_and_init_actions(
+        (goal_X, init_U) = self.expert_model.get_next_state_and_action_seq(
             x, expert_params
         )
-        return init_U, goal_X
+        return goal_X, init_U
 
     def loss(self, X, U, *args):
         raise NotImplementedError
