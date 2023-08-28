@@ -25,3 +25,8 @@ class MLP(nn.Module, base.BaseNN):
             q = nn.relu(nn.Dense(self.num_hidden_units)(q))
         q = nn.Dense(self.fout)(q)
         return x + q
+
+
+class LSTM(nn.Module, base.BaseNN):
+    lstm_features: int
+    num_hidden_units: int

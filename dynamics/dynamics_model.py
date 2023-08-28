@@ -15,4 +15,5 @@ class DynamicsModel(base.BaseDynamicsModel):
         return self.model.init(*model_args)
 
     def predict(self, x, u, t, params):
+        del t
         return self.model.apply(params, x, u)
