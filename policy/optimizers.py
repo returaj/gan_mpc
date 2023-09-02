@@ -41,7 +41,7 @@ def bilevel_optimization(
     T, m = init_U.shape
 
     X, U, _, low_level_grad, _, _, itr = trajax_opt.ilqr(
-        wrapped_cost, wrapped_dynamics, x0, U, **trajax_ilqr_kwargs
+        wrapped_cost, wrapped_dynamics, x0, init_U, **trajax_ilqr_kwargs
     )
 
     B = loss_grad_wrt_control(
