@@ -102,7 +102,7 @@ def load_params(params_path, from_np=True):
     if from_np:
         params = np.load(abs_params_path, allow_pickle=True).item()
     else:
-        raise NotImplementedError("params must be save using numpy.")
+        raise NotImplementedError("params must be saved using numpy.")
     return params
 
 

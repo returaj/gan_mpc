@@ -38,7 +38,6 @@ expert_prediction:
       lstm_features: 128
       num_layers: 3
       num_hidden_units: 128
-
   train:
     num_epochs: 10
     batch_size: 64
@@ -47,7 +46,6 @@ expert_prediction:
     discount_factor: 0.9
     teacher_forcing_factor: 0.7
     print_step: 10
-  
   load:
     id: "1"
 
