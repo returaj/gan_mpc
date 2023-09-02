@@ -41,11 +41,11 @@ class BaseMPC:
         self.solver = self.create_mpc_solver()
 
     def create_mpc_solver(self):
-        def func(x, U, params, cost_args, dynamics_args):
+        def func(xc, U, params, cost_args, dynamics_args):
             return opt.ilqr_solve(
                 self.cost,
                 self.dynamics,
-                x,
+                xc,
                 U,
                 params,
                 cost_args,
@@ -56,10 +56,15 @@ class BaseMPC:
         return jax.jit(func)
 
     def __call__(self, x, params):
-        init_U, goal_X = self.get_goal_states_and_init_actions(x, params)
+        (
+            init_U,
+            goal_X,
+            init_carry,
+        ) = self.get_goal_states_init_actions_and_carry(x, params)
         cost_args = (goal_X,)
         dynamics_args = ()
-        return self.solver(x, init_U, params, cost_args, dynamics_args)
+        xc = jnp.concatenate([x, init_carry], axis=-1)
+        return self.solver(xc, init_U, params, cost_args, dynamics_args)
 
     def init(self, mpc_weights, cost_args, dynamics_args, expert_args):
         params = {}
@@ -69,34 +74,43 @@ class BaseMPC:
         params["expert_params"] = self.expert_model.init(*expert_args)
         return params
 
-    def cost(self, x, u, t, params, *args):
+    def cost(self, xc, u, t, params, *args):
         mpc_weights = params["mpc_weights"]
         cost_params = params["cost_params"]
         return self.cost_model.get_cost(
-            x, u, t, cost_params, mpc_weights, *args
+            xc, u, t, cost_params, mpc_weights, *args
         )
 
-    def dynamics(self, x, u, t, params, *args):
+    def dynamics(self, xc, u, t, params, *args):
         dynamics_params = params["dynamics_params"]
-        return self.dynamics_model.predict(x, u, t, dynamics_params, *args)
+        return self.dynamics_model.predict(xc, u, t, dynamics_params, *args)
 
-    def get_goal_states_and_init_actions(self, x, params):
+    def get_carry(self, x):
+        return self.dynamics_model.get_carry(x)
+
+    def get_goal_states_init_actions_and_carry(self, x, params):
         expert_params = params["expert_params"]
         (goal_X, init_U) = self.expert_model.get_next_state_and_action_seq(
             x, expert_params
         )
-        return goal_X, init_U
+        init_carry = self.get_carry(x)
+        return goal_X, init_U, init_carry
 
-    def loss(self, X, U, *args):
+    def loss(self, XC, U, *args):
         raise NotImplementedError
 
     @functools.partial(jax.jit, static_argnums=(0,))
     def loss_and_grad(self, X, params, loss_vmap, batch_loss_args):
         @jax.jit
         def func(x0, params, loss_args):
-            init_U, goal_X = self.get_goal_states_and_init_actions(x0, params)
+            (
+                goal_X,
+                init_U,
+                init_carry,
+            ) = self.get_goal_states_init_actions_and_carry(x0, params)
             cost_args = (goal_X,)
             dynamics_args = ()
+            xc = jnp.concatenate([x0, init_carry], axis=-1)
             (
                 high_level_loss,
                 _,
@@ -106,7 +120,7 @@ class BaseMPC:
                 self.cost,
                 self.dynamics,
                 self.loss,
-                x0,
+                xc,
                 init_U,
                 params,
                 cost_args,

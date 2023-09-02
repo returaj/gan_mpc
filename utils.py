@@ -4,9 +4,7 @@ import json
 import os
 
 import numpy as np
-import orbax
 from dm_control import suite
-from flax.training import orbax_utils
 
 from gan_mpc.config import load_config
 
@@ -57,7 +55,7 @@ def get_config(config_path=None):
     return load_config.Config.from_yaml(config_path)
 
 
-def get_expert_trajectories(config, num_trajectories=50, path=None):
+def get_expert_trajectories(config, path=None, num_trajectories=50):
     env_type, env_name = config.env.type, config.env.expert.name
     path = path or os.path.join(
         _MAIN_DIR_PATH,
@@ -82,6 +80,54 @@ def save_json(data, dir_path, basename):
         json.dump(data, fp, indent=4, sort_keys=True)
 
 
+def load_json(path):
+    full_path = os.path.join(_MAIN_DIR_PATH, path)
+    with open(full_path, "r") as fp:
+        data = json.load(fp)
+    return data
+
+
+def save_params(params, config_dict, dir_path):
+    abs_dir_path = os.path.join(_MAIN_DIR_PATH, dir_path)
+    check_or_create_dir(abs_dir_path)
+    dir_list = sorted(os.listdir(abs_dir_path), key=lambda x: -int(x))
+    key = "0" if not dir_list else f"{int(dir_list[0]) + 1}"
+    full_path = os.path.join(abs_dir_path, key)
+    save_json(config_dict, full_path, "config.json")
+    np.save(os.path.join(full_path, "params.npy"), params, allow_pickle=True)
+
+
+def load_params(params_path, from_np=True):
+    abs_params_path = os.path.join(_MAIN_DIR_PATH, params_path)
+    if from_np:
+        params = np.load(abs_params_path, allow_pickle=True).item()
+    else:
+        raise NotImplementedError("params must be save using numpy.")
+    return params
+
+
+def get_policy_training_dataset(config, dataset_path=None):
+    trajectories = get_expert_trajectories(
+        config=config,
+        path=dataset_path,
+        num_trajectories=config.train.num_trajectories,
+    )
+
+    s_trajs = trajectories["states"]
+    horizon = config.mpc.horizon
+    X, Y = [], []
+    for s_traj in s_trajs:
+        traj_len, sdim = s_traj.shape
+        num_elems = traj_len - horizon
+        X.append(s_traj[:num_elems])
+        Y.append(s_traj.reshape((num_elems, horizon, sdim)))
+
+    X, Y = np.concatenate(X, axis=0), np.concatenate(Y, axis=0)
+    return X, Y
+
+
+"""Depricated
+
 def save_flax_trainstate(ckpt, dir_path, basename):
     check_or_create_dir(dir_path)
     orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
@@ -90,20 +136,13 @@ def save_flax_trainstate(ckpt, dir_path, basename):
         os.path.join(dir_path, basename), ckpt, save_args=save_args
     )
 
-
-def save_model(model, model_config, train_config, loss_dict, dir_path):
+def save_model(model, config_dict, dir_path):
     abs_dir_path = os.path.join(_MAIN_DIR_PATH, dir_path)
     check_or_create_dir(abs_dir_path)
     dir_list = sorted(os.listdir(abs_dir_path), key=lambda x: -int(x))
     key = "0" if not dir_list else f"{int(dir_list[0]) + 1}"
     full_path = os.path.join(abs_dir_path, key)
-
-    json_config = {
-        "loss": loss_dict,
-        "model": model_config.to_dict(),
-        "train": train_config.to_dict(),
-    }
-    ckpt = {"model": model, "config": json_config}
-
-    save_json(json_config, full_path, "config.json")
+    ckpt = {"model": model, "config": config_dict}
+    save_json(config_dict, full_path, "config.json")
     save_flax_trainstate(ckpt, full_path, "model")
+"""

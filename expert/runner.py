@@ -6,12 +6,11 @@ import optax
 from flax.training import train_state
 
 from gan_mpc import utils
-from gan_mpc.expert import nn as expert_nn
-from gan_mpc.expert import trainer
+from gan_mpc.expert import expert_model, trainer
 
 
 def get_train_dataset(config, dataset_path=None, train_split=0.8):
-    trajectories = utils.get_expert_trajectories(config, dataset_path)
+    trajectories = utils.get_expert_trajectories(config, path=dataset_path)
 
     s_trajs, a_trajs = trajectories["states"], trajectories["actions"]
     seqlen = config.expert_prediction.train.seqlen
@@ -55,26 +54,10 @@ def get_trainstate(model, params, tx):
 
 def get_model(config, state_size, action_size):
     expert_model_config = config.expert_prediction.model
-    if expert_model_config.use == "lstm":
-        model_config = expert_model_config.lstm
-        model = expert_nn.ScanLSTM(
-            lstm_features=model_config.lstm_features,
-            num_layers=model_config.num_layers,
-            num_hidden_units=model_config.num_hidden_units,
-            x_out=state_size,
-            u_out=action_size,
-        )
-    elif expert_model_config.use == "mlp":
-        model_config = expert_model_config.mlp
-        model = expert_nn.ScanMLP(
-            num_layers=model_config.num_layers,
-            num_hidden_units=model_config.num_hidden_units,
-            x_out=state_size,
-            u_out=action_size,
-        )
-    else:
-        raise ValueError("Choose either mlp or lstm model.")
-    return expert_nn.StateAction(model), expert_model_config
+    model = expert_model.ExpertModel.get_model(
+        model_config=expert_model_config, x_size=state_size, u_size=action_size
+    )
+    return model, expert_model_config
 
 
 def get_params(config, model, state_size):
@@ -114,13 +97,17 @@ def run(config_path=None):
         print_step=train_config.print_step,
     )
 
-    loss = {
-        "train_loss": round(float(train_loss), 5),
-        "test_loss": round(float(test_loss), 5),
+    save_config = {
+        "loss": {
+            "train_loss": round(float(train_loss), 5),
+            "test_loss": round(float(test_loss), 5),
+        },
+        "model": model_config.to_dict(),
+        "train": train_config.to_dict(),
     }
 
     dir_path = f"trained_models/expert/{env_type}/{env_name}/"
-    utils.save_model(trainstate, model_config, train_config, loss, dir_path)
+    utils.save_params(trainstate.params, save_config, dir_path)
 
 
 if __name__ == "__main__":

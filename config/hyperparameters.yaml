@@ -14,9 +14,14 @@ mpc:
   horizon: 10
   model:
     cost:
+      weights:
+        action: 1.0
+        state: 3.0
+        terminal: 0.0
       mlp:
         num_layers: 3
         num_hidden_units: 128
+        fout: 10
     dynamics:
       mlp:
         num_layers: 3
@@ -42,6 +47,9 @@ expert_prediction:
     discount_factor: 0.9
     teacher_forcing_factor: 0.7
     print_step: 10
+  
+  load:
+    id: "1"
 
 
 train:
@@ -49,3 +57,4 @@ train:
   num_epochs: 10
   batch_size: 64
   learning_rate: 1.0e-4
+  print_step: 10

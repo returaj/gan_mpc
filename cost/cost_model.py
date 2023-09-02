@@ -14,22 +14,22 @@ class MujocoBasedModel(base.BaseCostModel):
         model_args = self.model.get_init_params(*args)
         return self.model.init(*model_args)
 
-    def _get_staging_cost(self, x, u, weights, goal):
+    def _get_staging_cost(self, xc, u, weights, goal):
         u_cost = jnp.linalg.norm(u)
         alpha = 0.2
         x_size = goal.shape[0]
-        x_diff = x[:x_size] - goal
+        x_diff = xc[:x_size] - goal
         x_cost = jnp.sqrt(jnp.dot(x_diff, x_diff) + alpha**2) - alpha
         return jnp.array(weights) @ jnp.array([u_cost, x_cost])
 
-    def _get_terminal_cost(self, x, params, weight):
-        return weight * self.model.get_cost(params, x)
+    def _get_terminal_cost(self, xc, weight, params):
+        return weight * self.model.get_cost(params, xc)
 
-    def get_cost(self, x, u, t, params, weights, goal_X):
+    def get_cost(self, xc, u, t, params, weights, goal_X):
         horizon = self.config.mpc.horizon
         goal = goal_X[t]
         return jnp.where(
             t == horizon,
-            self._get_terminal_cost(x, weights[-1], params),
-            self._get_staging_cost(x, u, weights[:-1], goal),
+            self._get_terminal_cost(xc, weights[-1], params),
+            self._get_staging_cost(xc, u, weights[:-1], goal),
         )
