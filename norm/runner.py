@@ -100,7 +100,7 @@ def run(config_path, dataset_path=None):
     }
 
     env_type, env_name = config.env.type, config.env.expert.name
-    dir_path = f"trained_models/imitator/{env_type}/{env_name}/"
+    dir_path = f"trained_models/imitator/l2/{env_type}/{env_name}/"
     utils.save_params(
         params=params, config_dict=save_config, dir_path=dir_path
     )
