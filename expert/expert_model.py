@@ -41,7 +41,7 @@ class ExpertModel:
         config = self.config
         if load_params:
             env_type, env_name = config.env.type, config.env.expert.name
-            env_id = config.expert_prediction.load.id
+            env_id = config.mpc.model.expert.load_id
             params_path = f"trained_models/expert/{env_type}/{env_name}/{env_id}/params.npy"
             params = utils.load_params(params_path)
         else:

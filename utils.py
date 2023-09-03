@@ -7,6 +7,11 @@ import numpy as np
 from dm_control import suite
 
 from gan_mpc.config import load_config
+from gan_mpc.cost import cost_model
+from gan_mpc.cost import nn as cost_nn
+from gan_mpc.dynamics import dynamics_model
+from gan_mpc.dynamics import nn as dynamics_nn
+from gan_mpc.expert import expert_model
 
 _MAIN_DIR_PATH = os.path.dirname(__file__)
 
@@ -135,6 +140,42 @@ def get_policy_training_dataset(config, dataset_path=None):
 
     X, Y = np.concatenate(X, axis=0), np.concatenate(Y, axis=0)
     return X, Y
+
+
+def get_cost_model(config):
+    model_config = config.mpc.model.cost
+    mlp_config = model_config.mlp
+    nn_model = cost_nn.MLP(
+        num_layers=mlp_config.num_layers,
+        num_hidden_units=mlp_config.num_hidden_units,
+        fout=mlp_config.fout,
+    )
+    return cost_model.MujocoBasedModel(config, nn_model), model_config
+
+
+def get_dynamics_model(config, x_size):
+    model_config = config.mpc.model.dynamics
+    mlp_config = model_config.mlp
+    nn_model = dynamics_nn.MLP(
+        num_layers=mlp_config.num_layers,
+        num_hidden_units=mlp_config.num_hidden_units,
+        x_out=x_size,
+    )
+    return dynamics_model.DynamicsModel(config, nn_model), model_config
+
+
+def get_expert_model(config, x_size, u_size):
+    env_type, env_name = config.env.type, config.env.expert.name
+    env_id = config.mpc.model.expert.load_id
+    saved_config_path = (
+        f"trained_models/expert/{env_type}/{env_name}/{env_id}/config.json"
+    )
+    saved_config = load_json(saved_config_path)
+    model_config = load_config.Config.from_dict(saved_config["model"])
+    nn_model = expert_model.ExpertModel.get_model(
+        model_config=model_config, x_size=x_size, u_size=u_size
+    )
+    return expert_model.ExpertModel(config, nn_model)
 
 
 """Depricated

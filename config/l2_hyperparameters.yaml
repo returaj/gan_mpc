@@ -26,6 +26,8 @@ mpc:
       mlp:
         num_layers: 3
         num_hidden_units: 128
+    expert:
+      load_id: "2"
   train:
     cost:
       num_trajectories: 2
@@ -41,6 +43,7 @@ mpc:
       learning_rate: 1.0e-4
       print_step: 1
       no_grads: ["mpc_weights", "cost_params", "expert_params"]
+
 
 
 expert_prediction:
@@ -61,18 +64,3 @@ expert_prediction:
     discount_factor: 0.9
     teacher_forcing_factor: 0.7
     print_step: 10
-  load:
-    id: "2"
-
-
-# train:
-#   num_trajectories: 2
-#   num_epochs: 2
-#   batch_size: 64
-#   learning_rate: 1.0e-4
-#   print_step: 1
-#   use: "l2_policy"
-#   l2_policy:
-#     no_grad:
-#       cost: ["mpc_weights", "dynamics_params", "expert_params"]
-#       dynamics: ["mpc_weights", "cost_params", "expert_params"]
