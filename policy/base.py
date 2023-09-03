@@ -17,8 +17,6 @@ TRAJAX_iLQR_KWARGS = {
     "psd_delta": 0.0,
     "alpha_0": 1.0,
     "alpha_min": 0.00005,
-    "vjp_method": "tvlqr",
-    "vjp_options": None,
 }
 
 COST_ARGS_NAME = ("goal_state",)
@@ -57,8 +55,8 @@ class BaseMPC:
 
     def __call__(self, x, params):
         (
-            init_U,
             goal_X,
+            init_U,
             init_carry,
         ) = self.get_goal_states_init_actions_and_carry(x, params)
         cost_args = (goal_X,)
@@ -90,8 +88,11 @@ class BaseMPC:
 
     def get_goal_states_init_actions_and_carry(self, x, params):
         expert_params = params["expert_params"]
+        xseq = jnp.vstack(
+            [x, jnp.zeros((self.config.mpc.horizon - 1, x.shape[0]))]
+        )
         (goal_X, init_U) = self.expert_model.get_next_state_and_action_seq(
-            x, expert_params
+            xseq, expert_params
         )
         init_carry = self.get_carry(x)
         return goal_X, init_U, init_carry
@@ -99,10 +100,9 @@ class BaseMPC:
     def loss(self, XC, U, *args):
         raise NotImplementedError
 
-    @functools.partial(jax.jit, static_argnums=(0,))
     def loss_and_grad(self, X, params, loss_vmap, batch_loss_args):
         @jax.jit
-        def func(x0, params, loss_args):
+        def func(x0, params, *loss_args):
             (
                 goal_X,
                 init_U,

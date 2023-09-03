@@ -1,0 +1,78 @@
+# hyperparameters 
+
+seed: 0
+
+env:
+  type: "dmcontrol"  # options: dmcontrol, brax
+  expert:
+    name: "cartpole_balance"
+  imitator:
+    name: "cartpole_balance"
+
+
+mpc:
+  horizon: 3
+  model:
+    cost:
+      weights:
+        action: 1.0
+        state: 3.0
+        terminal: 1.0
+      mlp:
+        num_layers: 3
+        num_hidden_units: 128
+        fout: 10
+    dynamics:
+      mlp:
+        num_layers: 3
+        num_hidden_units: 128
+  train:
+    cost:
+      num_trajectories: 2
+      num_epochs: 2
+      batch_size: 64
+      learning_rate: 1.0e-4
+      print_step: 1
+      no_grads: ["mpc_weights", "dynamics_params", "expert_params"]
+    dynamics:
+      num_episodes: 1
+      num_interactions_per_episode: 200
+      batch_size: 64
+      learning_rate: 1.0e-4
+      print_step: 1
+      no_grads: ["mpc_weights", "cost_params", "expert_params"]
+
+
+expert_prediction:
+  model:
+    use: "mlp"
+    mlp:
+      num_layers: 3
+      num_hidden_units: 128
+    lstm:
+      lstm_features: 128
+      num_layers: 3
+      num_hidden_units: 128
+  train:
+    num_epochs: 10
+    batch_size: 64
+    seqlen: 10
+    learning_rate: 1.0e-4
+    discount_factor: 0.9
+    teacher_forcing_factor: 0.7
+    print_step: 10
+  load:
+    id: "2"
+
+
+# train:
+#   num_trajectories: 2
+#   num_epochs: 2
+#   batch_size: 64
+#   learning_rate: 1.0e-4
+#   print_step: 1
+#   use: "l2_policy"
+#   l2_policy:
+#     no_grad:
+#       cost: ["mpc_weights", "dynamics_params", "expert_params"]
+#       dynamics: ["mpc_weights", "cost_params", "expert_params"]

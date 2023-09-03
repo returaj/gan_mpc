@@ -10,5 +10,6 @@ class L2MPC(base.BaseMPC):
         del U
         x_size = desired_X.shape[-1]
         X, _ = jnp.split(XC, [x_size], axis=-1)
+        assert desired_X.shape == X.shape
         diff = (X - desired_X) ** 2
         return jnp.sum(jnp.mean(diff, axis=0))

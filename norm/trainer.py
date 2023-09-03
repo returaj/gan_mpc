@@ -5,19 +5,19 @@ import jax.numpy as jnp
 import optax
 
 
-@jax.jit
 def calculate_loss(policy_args, dataset):
     policy, params = policy_args
     batch_x, batch_y = dataset
 
-    func = lambda x: policy(x, params)
+    func = jax.jit(lambda x: policy(x, params))
     pred_y, pred_u, *_ = jax.vmap(func, in_axes=(0,))(batch_x)
-    loss = policy.loss(pred_y, pred_u, batch_y)
-    return loss
+    batch_loss = jax.vmap(policy.loss, in_axes=(0, 0, 0))(
+        pred_y, pred_u, batch_y
+    )
+    return jnp.mean(batch_loss)
 
 
-@jax.jit
-def train_epoch(
+def train_policy_cost(
     policy_args,
     opt_args,
     perm,
@@ -31,8 +31,7 @@ def train_epoch(
     def body(carry, p):
         params, opt_state = carry
         batch_x, batch_y = X[p], Y[p]
-        loss_vmap = (0,)
-        loss_args = (batch_y,)
+        loss_vmap, loss_args = (0,), (batch_y,)
         loss, grads = policy.loss_and_grad(
             batch_x, params, loss_vmap, loss_args
         )
@@ -66,7 +65,7 @@ def train(
         perm = jax.random.choice(
             subkey, datasize, shape=(steps_per_epoch, batch_size)
         )
-        params, opt_state, train_loss = train_epoch(
+        params, opt_state, train_loss = train_policy_cost(
             policy_args=(policy, params),
             opt_args=(opt, opt_state),
             perm=perm,

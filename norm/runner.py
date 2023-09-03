@@ -84,9 +84,16 @@ def get_params(policy, config, x_size, u_size):
 
 
 def get_optimizer(config, params):
-    lr = config.train.learning_rate
-    opt = optax.chain(
-        optax.clip_by_global_norm(max_norm=100.0), optax.adam(lr)
+    labels = utils.get_masked_labels(
+        all_vars=params.keys(),
+        masked_vars=config.mpc.train.cost.no_grads,
+        tx_key="tx",
+        zero_key="zero",
+    )
+    lr = config.mpc.train.cost.learning_rate
+    tx = optax.chain(optax.clip_by_global_norm(max_norm=100.0), optax.adam(lr))
+    opt = optax.multi_transform(
+        {"tx": tx, "zero": optax.set_to_zero()}, labels
     )
     opt_state = opt.init(params)
     return opt, opt_state
@@ -94,6 +101,7 @@ def get_optimizer(config, params):
 
 def get_dataset(config, dataset_path, key, train_split=0.8):
     X, Y = utils.get_policy_training_dataset(config, dataset_path)
+    X, Y = jnp.array(X), jnp.array(Y)
     data_size = X.shape[0]
     split_pos = int(data_size * train_split)
     _, subkey = jax.random.split(key)
@@ -103,7 +111,7 @@ def get_dataset(config, dataset_path, key, train_split=0.8):
     return (train_dataset, test_dataset)
 
 
-def run(config_path=None, dataset_path=None):
+def run(config_path, dataset_path=None):
     config = utils.get_config(config_path)
     key = jax.random.PRNGKey(config.seed)
 
@@ -119,10 +127,10 @@ def run(config_path=None, dataset_path=None):
         policy_args=(policy, params),
         opt_args=(opt, opt_state),
         dataset=dataset,
-        num_epochs=config.train.num_epochs,
-        batch_size=config.train.batch_size,
+        num_epochs=config.mpc.train.cost.num_epochs,
+        batch_size=config.mpc.train.cost.batch_size,
         key=key,
-        print_step=config.train.print_step,
+        print_step=config.mpc.train.cost.print_step,
     )
 
     save_config = {
@@ -134,12 +142,13 @@ def run(config_path=None, dataset_path=None):
         "dynamics": dynamics_config.to_dict(),
     }
 
-    env_type, env_name = config.env.type, config.env.expert.name
-    dir_path = f"trained_models/imitator/{env_type}/{env_name}/"
-    utils.save_params(
-        params=params, config_dict=save_config, dir_path=dir_path
-    )
+    # env_type, env_name = config.env.type, config.env.expert.name
+    # dir_path = f"trained_models/imitator/{env_type}/{env_name}/"
+    # utils.save_params(
+    #     params=params, config_dict=save_config, dir_path=dir_path
+    # )
 
 
 if __name__ == "__main__":
-    run()
+    config_path = "config/l2_hyperparameters.yaml"
+    run(config_path=config_path)

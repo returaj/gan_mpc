@@ -2,6 +2,7 @@
 
 import functools
 import jax
+import jax.numpy as jnp
 import trajax.optimizers as trajax_opt
 
 
@@ -19,7 +20,17 @@ def ilqr_solve(
     )
 
 
-@functools.partial(jax.jit, static_argnums=(0, 1, 2))
+def objective(cost, dynamics, U, x0):
+    return jnp.sum(
+        trajax_opt.evaluate(
+            cost,
+            trajax_opt.rollout(dynamics, U, x0),
+            trajax_opt.pad(U),
+        )
+    )
+
+
+# @functools.partial(jax.jit, static_argnums=(0, 1, 2))
 def bilevel_optimization(
     cost,
     dynamics,
@@ -71,7 +82,7 @@ def loss_grad_wrt_control(loss, dynamics, x0, U, loss_args):
 
 def cost_hessian_wrt_control(cost, dynamics, x0, U):
     def func(U):
-        return trajax_opt.objective(cost, dynamics, U, x0)
+        return objective(cost, dynamics, U, x0)
 
     return jax.hessian(func)(U)
 
@@ -84,7 +95,7 @@ def cost_vjp(cost, dynamics, V, x0, U, params, cost_args):
             def wrapped_cost(x, u, t):
                 return cost(x, u, t, params, *cost_args)
 
-            return trajax_opt.objective(wrapped_cost, dynamics, U, x0)
+            return objective(wrapped_cost, dynamics, U, x0)
 
         return V @ jax.grad(inner)(U).reshape((v_size,))
 

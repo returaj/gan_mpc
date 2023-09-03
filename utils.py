@@ -48,10 +48,8 @@ def flatten_tree_obs(obs):
     return np.concatenate(flattern)
 
 
-def get_config(config_path=None):
-    config_path = config_path or os.path.join(
-        _MAIN_DIR_PATH, "config/hyperparameters.yaml"
-    )
+def get_config(config_path):
+    config_path = os.path.join(_MAIN_DIR_PATH, config_path)
     return load_config.Config.from_yaml(config_path)
 
 
@@ -106,21 +104,34 @@ def load_params(params_path, from_np=True):
     return params
 
 
+def get_masked_labels(all_vars, masked_vars, tx_key, zero_key):
+    labels = {}
+    for v in all_vars:
+        if v in masked_vars:
+            labels[v] = zero_key
+        else:
+            labels[v] = tx_key
+    return labels
+
+
 def get_policy_training_dataset(config, dataset_path=None):
     trajectories = get_expert_trajectories(
         config=config,
         path=dataset_path,
-        num_trajectories=config.train.num_trajectories,
+        num_trajectories=config.mpc.train.cost.num_trajectories,
     )
 
     s_trajs = trajectories["states"]
     horizon = config.mpc.horizon
     X, Y = [], []
     for s_traj in s_trajs:
-        traj_len, sdim = s_traj.shape
+        traj_len, _ = s_traj.shape
         num_elems = traj_len - horizon
         X.append(s_traj[:num_elems])
-        Y.append(s_traj.reshape((num_elems, horizon, sdim)))
+        tmp = []
+        for i in range(num_elems):
+            tmp.append(s_traj[i : i + horizon + 1])
+        Y.append(tmp)
 
     X, Y = np.concatenate(X, axis=0), np.concatenate(Y, axis=0)
     return X, Y
