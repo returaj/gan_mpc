@@ -29,19 +29,23 @@ mpc:
     expert:
       load_id: "2"
   train:
+    num_epochs: 3
+    print_after_n_epochs: 1
     cost:
       num_trajectories: 2
-      num_epochs: 2
+      num_updates: 2
       batch_size: 64
       learning_rate: 1.0e-4
-      print_step: 1
       no_grads: ["mpc_weights", "dynamics_params", "expert_params"]
     dynamics:
       num_episodes: 1
-      num_interactions_per_episode: 200
+      max_interactions_per_episode: 200
+      replay_buffer_size: 10_000
+      num_updates: 2
       batch_size: 64
       learning_rate: 1.0e-4
-      print_step: 1
+      discount_factor: 0.9
+      teacher_forcing_factor: 0.7
       no_grads: ["mpc_weights", "cost_params", "expert_params"]
 
 

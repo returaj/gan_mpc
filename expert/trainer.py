@@ -3,25 +3,14 @@
 import jax
 import jax.numpy as jnp
 
-
-@jax.jit
-def discounted_sum(mat, gamma):
-    def body(t, val):
-        curr_sum, discount = val
-        curr_sum += discount * mat[t]
-        discount *= gamma
-        return (curr_sum, discount)
-
-    length, m_size = mat.shape
-    curr_sum, _ = jax.lax.fori_loop(0, length, body, (jnp.zeros(m_size), 1.0))
-    return curr_sum
+from gan_mpc import utils
 
 
 @jax.jit
 def calculate_loss(
     trainstate, params, dataset, discount_factor, teacher_forcing
 ):
-    batch_discount_sum_fn = jax.vmap(discounted_sum, in_axes=(0, None))
+    batch_discount_sum_fn = jax.vmap(utils.discounted_sum, in_axes=(0, None))
 
     batch_s, batch_a, batch_next_s = dataset
     pred_next_s, pred_a = trainstate.apply_fn(params, batch_s, teacher_forcing)
@@ -86,7 +75,7 @@ def train(
         perm = jax.random.choice(
             subkey, datasize, shape=(steps_per_epoch, batch_size)
         )
-        teacher_forcing = ep >= (num_epochs * teacher_forcing_factor)
+        teacher_forcing = ep <= (num_epochs * teacher_forcing_factor)
         trainstate, train_loss = train_epoch(
             trainstate, perm, train_data, discount_factor, teacher_forcing
         )

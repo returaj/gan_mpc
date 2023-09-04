@@ -30,7 +30,7 @@ def objective(cost, dynamics, U, x0):
     )
 
 
-# @functools.partial(jax.jit, static_argnums=(0, 1, 2))
+@functools.partial(jax.jit, static_argnums=(0, 1, 2))
 def bilevel_optimization(
     cost,
     dynamics,

@@ -1,5 +1,7 @@
 """other codes."""
 
+import jax
+import jax.numpy as jnp
 import json
 import os
 
@@ -19,6 +21,21 @@ _MAIN_DIR_PATH = os.path.dirname(__file__)
 def get_dm_expert_env(name):
     domain, task = name.split("_")
     return suite.load(domain, task)
+
+
+def get_dm_imitator_env(name, seed):
+    domain, task = name.split("_")
+    return suite.load(domain, task, task_kwargs={"random": seed})
+
+
+def get_imitator_env(env_type, env_name, seed):
+    if env_type == "brax":
+        raise NotImplementedError
+    elif env_type == "dmcontrol":
+        return get_dm_imitator_env(env_name, seed)
+    raise Exception(
+        f"env_type can be either brax or dmcontrol, but given {env_type}"
+    )
 
 
 def get_dm_state_action_size(name):
@@ -50,7 +67,7 @@ def flatten_tree_obs(obs):
     for v in obs.values():
         v = np.array([v]) if np.isscalar(v) else np.ravel(v)
         flattern.append(v)
-    return np.concatenate(flattern)
+    return jnp.concatenate(flattern)
 
 
 def get_config(config_path):
@@ -78,6 +95,7 @@ def check_or_create_dir(path):
 
 
 def save_json(data, dir_path, basename):
+    dir_path = os.path.join(_MAIN_DIR_PATH, dir_path)
     check_or_create_dir(dir_path)
     with open(os.path.join(dir_path, basename), "w") as fp:
         json.dump(data, fp, indent=4, sort_keys=True)
@@ -138,8 +156,7 @@ def get_policy_training_dataset(config, dataset_path=None):
             tmp.append(s_traj[i : i + horizon + 1])
         Y.append(tmp)
 
-    X, Y = np.concatenate(X, axis=0), np.concatenate(Y, axis=0)
-    return X, Y
+    return np.concatenate(X, axis=0), np.concatenate(Y, axis=0)
 
 
 def get_cost_model(config):
@@ -176,6 +193,40 @@ def get_expert_model(config, x_size, u_size):
         model_config=model_config, x_size=x_size, u_size=u_size
     )
     return expert_model.ExpertModel(config, nn_model)
+
+
+@jax.jit
+def discounted_sum(mat, gamma):
+    def body(t, val):
+        curr_sum, discount = val
+        curr_sum += discount * mat[t]
+        discount *= gamma
+        return (curr_sum, discount)
+
+    length, m_size = mat.shape
+    curr_sum, _ = jax.lax.fori_loop(0, length, body, (jnp.zeros(m_size), 1.0))
+    return curr_sum
+
+
+def run_dm_policy(env, policy, params, max_interactions):
+    states, actions, next_states = [], [], []
+    rewards = []
+    jit_policy = jax.jit(lambda x: policy(x, params))
+    timestep = env.reset()
+    t = 0, 0
+    while (not timestep.last()) and (t < max_interactions):
+        x = flatten_tree_obs(timestep.observation)
+        u = jit_policy(x)
+        timestep = env.step(u)
+        t += 1
+        states.append(x)
+        actions.append(u)
+        rewards.append(timestep.reward)
+    return (
+        jnp.array(states),
+        jnp.array(actions),
+        rewards,
+    )
 
 
 """Depricated

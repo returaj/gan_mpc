@@ -1,8 +1,28 @@
-"""norm based policy training."""
+"""norm based cost parameters training."""
 
 import jax
 import jax.numpy as jnp
 import optax
+
+from gan_mpc import utils
+
+
+def get_dataset(config, dataset_path, key, train_split=0.8):
+    X, Y = utils.get_policy_training_dataset(config, dataset_path)
+    X, Y = jnp.array(X), jnp.array(Y)
+    data_size = X.shape[0]
+    split_pos = int(data_size * train_split)
+    _, subkey = jax.random.split(key)
+    perm = jax.random.permutation(subkey, data_size)
+    train_dataset = (
+        X[perm[:split_pos]],
+        Y[perm[:split_pos]],
+    )
+    test_dataset = (
+        X[perm[split_pos:]],
+        Y[perm[split_pos:]],
+    )
+    return (train_dataset, test_dataset)
 
 
 def calculate_loss(policy_args, dataset):
@@ -17,7 +37,7 @@ def calculate_loss(policy_args, dataset):
     return jnp.mean(batch_loss)
 
 
-def train_policy_cost(
+def train_cost_parameters(
     policy_args,
     opt_args,
     perm,
@@ -45,40 +65,29 @@ def train_policy_cost(
     return params, opt_state, jnp.mean(batch_loss)
 
 
-def train(
-    policy_args,
-    opt_args,
-    dataset,
-    num_epochs,
-    batch_size,
-    key,
-    print_step=10,
-):
+def train(policy_args, opt_args, dataset, num_updates, batch_size, key, id):
+    del id
     policy, params = policy_args
     opt, opt_state = opt_args
     train_data, test_data = dataset
     datasize = train_data[0].shape[0]
-    steps_per_epoch = datasize // batch_size
-    epoch_loss = []
-    for ep in range(1, num_epochs + 1):
+    steps_per_update = datasize // batch_size
+    train_losses, test_losses = [], []
+    for _ in range(1, num_updates + 1):
         key, subkey = jax.random.split(key)
         perm = jax.random.choice(
-            subkey, datasize, shape=(steps_per_epoch, batch_size)
+            subkey, datasize, shape=(steps_per_update, batch_size)
         )
-        params, opt_state, train_loss = train_policy_cost(
+        params, opt_state, train_loss = train_cost_parameters(
             policy_args=(policy, params),
             opt_args=(opt, opt_state),
             perm=perm,
             dataset=train_data,
         )
-        if (ep % print_step) == 0:
-            test_loss = calculate_loss(
-                policy_args=(policy, params), dataset=test_data
-            )
-            print(
-                f"epoch: {ep} training_loss: {train_loss:.4f} test_loss: {test_loss:.4f}"
-            )
-        epoch_loss.append(train_loss)
+        test_loss = calculate_loss(
+            policy_args=(policy, params), dataset=test_data
+        )
+        train_losses.append(train_loss)
+        test_losses.append(test_loss)
 
-    test_loss = calculate_loss(policy_args=(policy, params), dataset=test_data)
-    return params, epoch_loss[-1], test_loss
+    return params, opt_state, train_losses, test_losses
