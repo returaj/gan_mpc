@@ -11,7 +11,7 @@ env:
 
 
 mpc:
-  horizon: 3
+  horizon: 5
   model:
     cost:
       weights:
@@ -29,7 +29,7 @@ mpc:
     expert:
       load_id: "2"
   train:
-    num_epochs: 3
+    num_epochs: 5
     print_after_n_epochs: 1
     cost:
       num_trajectories: 2
@@ -38,10 +38,10 @@ mpc:
       learning_rate: 1.0e-4
       no_grads: ["mpc_weights", "dynamics_params", "expert_params"]
     dynamics:
-      num_episodes: 1
+      num_episodes: 2
       max_interactions_per_episode: 200
       replay_buffer_size: 10_000
-      num_updates: 2
+      num_updates: 3
       batch_size: 64
       learning_rate: 1.0e-4
       discount_factor: 0.9

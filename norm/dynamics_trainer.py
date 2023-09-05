@@ -186,7 +186,7 @@ def train_params(
             discount_factor=discount_factor,
             teacher_forcing=teacher_forcing,
         )
-        train_losses.append(train_loss)
+        train_losses.append(float(train_loss))
     return params, opt_state, train_losses
 
 

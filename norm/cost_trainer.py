@@ -87,7 +87,7 @@ def train(policy_args, opt_args, dataset, num_updates, batch_size, key, id):
         test_loss = calculate_loss(
             policy_args=(policy, params), dataset=test_data
         )
-        train_losses.append(train_loss)
-        test_losses.append(test_loss)
+        train_losses.append(float(train_loss))
+        test_losses.append(float(test_loss))
 
     return params, opt_state, train_losses, test_losses

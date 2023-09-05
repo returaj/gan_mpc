@@ -107,7 +107,7 @@ def run(config_path=None):
     }
 
     dir_path = f"trained_models/expert/{env_type}/{env_name}/"
-    utils.save_params(trainstate.params, save_config, dir_path)
+    utils.save_all_args(dir_path, trainstate.params, save_config)
 
 
 if __name__ == "__main__":

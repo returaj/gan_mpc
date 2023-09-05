@@ -99,6 +99,8 @@ def train(
             max_interactions_per_episode=dynamics_config.max_interactions_per_episode,
             num_updates=dynamics_config.num_updates,
             batch_size=dynamics_config.batch_size,
+            discount_factor=dynamics_config.discount_factor,
+            teacher_forcing_factor=dynamics_config.teacher_forcing_factor,
             key=subkey1,
             id=ep,
         )
@@ -128,10 +130,10 @@ def train(
         if (ep % print_after_n_epochs) == 0:
             print("-----------------------------")
             print(
-                f"epoch: {ep} env_reward: {dynamics_env_rewards[-1][-1]:.2f}"
+                f"epoch: {ep} env_reward: {sum(dynamics_env_rewards[-1]):.2f}"
             )
             print(
-                f"dyn_train_loss: {dynamics_train_losses[-1]:.5f} dyn_test_loss: {dynamics_train_losses[-1]:.5f}"
+                f"dyn_train_loss: {dynamics_train_losses[-1]:.5f} dyn_test_loss: {dynamics_test_losses[-1]:.5f}"
             )
             print(
                 f"cost_train_loss: {cost_train_losses[-1]:.5f} cost_test_loss: {cost_test_losses[-1]:.5f}"
@@ -169,7 +171,9 @@ def run(config_path, dataset_path=None):
     dynamics_dataset = dynamics_trainer.get_dataset(config, dataset_path)
 
     env = utils.get_imitator_env(
-        env_type=config.env.type, env_name=config.env.imitator.name
+        env_type=config.env.type,
+        env_name=config.env.imitator.name,
+        seed=config.seed,
     )
 
     params, dynamics_out_args, cost_out_args = train(
@@ -212,39 +216,22 @@ def run(config_path, dataset_path=None):
                 "test_loss": round(cost_test_losses[-1], 5),
             },
         },
-        "reward": round(dynamics_env_rewards[-1][-1], 2),
+        "reward": round(sum(dynamics_env_rewards[-1]), 2),
         "policy": policy_config.to_dict(),
     }
 
     env_type, env_name = config.env.type, config.env.expert.name
     dir_path = f"trained_models/imitator/{env_type}/{env_name}/l2/"
-    utils.save_params(
-        params=params, config_dict=save_config, dir_path=dir_path
-    )
-    utils.save_json(
-        data=dynamics_env_rewards,
-        dir_path=dir_path,
-        basename="dynamics_env_rewards.json",
-    )
-    utils.save_json(
-        data=dynamics_train_losses,
-        dir_path=dir_path,
-        basename="dynamics_train_losses.json",
-    )
-    utils.save_json(
-        data=dynamics_test_losses,
-        dir_path=dir_path,
-        basename="dynamics_test_losses.json",
-    )
-    utils.save_json(
-        data=cost_train_losses,
-        dir_path=dir_path,
-        basename="cost_train_losses.json",
-    )
-    utils.save_json(
-        data=cost_test_losses,
-        dir_path=dir_path,
-        basename="cost_test_losses.json",
+
+    utils.save_all_args(
+        dir_path,
+        params,
+        save_config,
+        (dynamics_env_rewards, "dynamics_env_rewards.json"),
+        (dynamics_train_losses, "dynamics_train_losses.json"),
+        (dynamics_test_losses, "dynamics_test_losses.json"),
+        (cost_train_losses, "cost_train_losses.json"),
+        (cost_test_losses, "cost_test_losses.json"),
     )
 
 

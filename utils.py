@@ -1,10 +1,10 @@
 """other codes."""
 
-import jax
-import jax.numpy as jnp
 import json
 import os
 
+import jax
+import jax.numpy as jnp
 import numpy as np
 from dm_control import suite
 
@@ -108,14 +108,18 @@ def load_json(path):
     return data
 
 
-def save_params(params, config_dict, dir_path):
+def save_all_args(dir_path, params, model_config, *other_json_args):
     abs_dir_path = os.path.join(_MAIN_DIR_PATH, dir_path)
     check_or_create_dir(abs_dir_path)
     dir_list = sorted(os.listdir(abs_dir_path), key=lambda x: -int(x))
     key = "0" if not dir_list else f"{int(dir_list[0]) + 1}"
     full_path = os.path.join(abs_dir_path, key)
-    save_json(config_dict, full_path, "config.json")
+    # save model params
+    save_json(model_config, full_path, "config.json")
     np.save(os.path.join(full_path, "params.npy"), params, allow_pickle=True)
+    # save json data
+    for json_data, name in other_json_args:
+        save_json(json_data, full_path, name)
 
 
 def load_params(params_path, from_np=True):
@@ -213,10 +217,11 @@ def run_dm_policy(env, policy, params, max_interactions):
     rewards = []
     jit_policy = jax.jit(lambda x: policy(x, params))
     timestep = env.reset()
-    t = 0, 0
+    t = 0
     while (not timestep.last()) and (t < max_interactions):
         x = flatten_tree_obs(timestep.observation)
-        u = jit_policy(x)
+        _, U, *_ = jit_policy(x)
+        u = U[0]
         timestep = env.step(u)
         t += 1
         states.append(x)
@@ -248,4 +253,13 @@ def save_model(model, config_dict, dir_path):
     ckpt = {"model": model, "config": config_dict}
     save_json(config_dict, full_path, "config.json")
     save_flax_trainstate(ckpt, full_path, "model")
+
+def save_params(params, config_dict, dir_path):
+    abs_dir_path = os.path.join(_MAIN_DIR_PATH, dir_path)
+    check_or_create_dir(abs_dir_path)
+    dir_list = sorted(os.listdir(abs_dir_path), key=lambda x: -int(x))
+    key = "0" if not dir_list else f"{int(dir_list[0]) + 1}"
+    full_path = os.path.join(abs_dir_path, key)
+    save_json(config_dict, full_path, "config.json")
+    np.save(os.path.join(full_path, "params.npy"), params, allow_pickle=True)
 """
