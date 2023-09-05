@@ -29,12 +29,14 @@ class BaseMPC:
         cost_model,
         dynamics_model,
         expert_model,
+        loss_vmap=(0,),
         trajax_ilqr_kwargs=TRAJAX_iLQR_KWARGS,
     ):
         self.config = config
         self.cost_model = cost_model
         self.dynamics_model = dynamics_model
         self.expert_model = expert_model
+        self.loss_vmap = loss_vmap
         self.trajax_ilqr_kwargs = trajax_ilqr_kwargs
         self.solver = self.create_mpc_solver()
 
@@ -86,6 +88,7 @@ class BaseMPC:
     def get_carry(self, x):
         return self.dynamics_model.get_carry(x)
 
+    @functools.partial(jax.jit, static_argnums=(0,))
     def get_goal_states_init_actions_and_carry(self, x, params):
         expert_params = params["expert_params"]
         xseq = jnp.vstack(
@@ -100,7 +103,8 @@ class BaseMPC:
     def loss(self, XC, U, *args):
         raise NotImplementedError
 
-    def loss_and_grad(self, X, params, loss_vmap, batch_loss_args):
+    @functools.partial(jax.jit, static_argnums=(0,))
+    def loss_and_grad(self, X, params, batch_loss_args):
         @jax.jit
         def func(x0, params, *loss_args):
             (
@@ -130,7 +134,7 @@ class BaseMPC:
             )
             return (high_level_loss, high_level_grad)
 
-        in_axes = (0, None) + loss_vmap
+        in_axes = (0, None) + self.loss_vmap
         vloss, vgrads = jax.vmap(func, in_axes=in_axes)(
             X, params, *batch_loss_args
         )

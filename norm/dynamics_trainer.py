@@ -1,10 +1,10 @@
 """train dynamics model using env interactions."""
 
 import collections
+import functools
 
 import jax
 import jax.numpy as jnp
-import numpy as np
 import optax
 
 from gan_mpc import utils
@@ -66,6 +66,7 @@ class ReplayBuffer:
         )
 
 
+@functools.partial(jax.jit, static_argnums=(0, 1))
 def predict_loss(
     predict_fn,
     get_carry_fn,
@@ -152,7 +153,6 @@ def train_params(
     predict_fn = lambda params, xc, u: policy.dynamics(xc, u, 0, params)
     get_carry_fn = lambda x: policy.get_carry(x)
 
-    @jax.jit
     def partial_predict_loss_fn(
         params, xseq, useq, next_xseq, discount_factor, teacher_forcing
     ):
@@ -208,6 +208,11 @@ def train(
     policy, params = policy_args
     opt, opt_state = opt_args
 
+    @jax.jit
+    def policy_predict_fn(x):
+        _, U, *_ = policy(x, params)
+        return U[0]
+
     if id == 1:
         key, subkey = jax.random.split(key)
         params, opt_state, _ = train_params(
@@ -229,8 +234,7 @@ def train(
         key, subkey = jax.random.split(key)
         state_traj, action_traj, rewards = utils.run_dm_policy(
             env=env,
-            policy=policy,
-            params=params,
+            policy_fn=policy_predict_fn,
             max_interactions=max_interactions_per_episode,
         )
         replay_buffer.add(state_traj, action_traj)

@@ -176,12 +176,23 @@ def get_cost_model(config):
 
 def get_dynamics_model(config, x_size):
     model_config = config.mpc.model.dynamics
-    mlp_config = model_config.mlp
-    nn_model = dynamics_nn.MLP(
-        num_layers=mlp_config.num_layers,
-        num_hidden_units=mlp_config.num_hidden_units,
-        x_out=x_size,
-    )
+    if model_config.use == "lstm":
+        lstm_config = model_config.lstm
+        nn_model = dynamics_nn.LSTM(
+            lstm_features=lstm_config.lstm_features,
+            num_layers=lstm_config.num_layers,
+            num_hidden_units=lstm_config.num_hidden_units,
+            x_out=x_size,
+        )
+    elif model_config.use == "mlp":
+        mlp_config = model_config.mlp
+        nn_model = dynamics_nn.MLP(
+            num_layers=mlp_config.num_layers,
+            num_hidden_units=mlp_config.num_hidden_units,
+            x_out=x_size,
+        )
+    else:
+        raise ValueError("Choose either mlp or lstm model.")
     return dynamics_model.DynamicsModel(config, nn_model), model_config
 
 
@@ -212,16 +223,14 @@ def discounted_sum(mat, gamma):
     return curr_sum
 
 
-def run_dm_policy(env, policy, params, max_interactions):
-    states, actions, next_states = [], [], []
+def run_dm_policy(env, policy_fn, max_interactions):
+    states, actions = [], []
     rewards = []
-    jit_policy = jax.jit(lambda x: policy(x, params))
     timestep = env.reset()
     t = 0
     while (not timestep.last()) and (t < max_interactions):
         x = flatten_tree_obs(timestep.observation)
-        _, U, *_ = jit_policy(x)
-        u = U[0]
+        u = policy_fn(x)
         timestep = env.step(u)
         t += 1
         states.append(x)

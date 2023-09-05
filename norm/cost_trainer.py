@@ -51,10 +51,8 @@ def train_cost_parameters(
     def body(carry, p):
         params, opt_state = carry
         batch_x, batch_y = X[p], Y[p]
-        loss_vmap, loss_args = (0,), (batch_y,)
-        loss, grads = policy.loss_and_grad(
-            batch_x, params, loss_vmap, loss_args
-        )
+        loss_args = (batch_y,)
+        loss, grads = policy.loss_and_grad(batch_x, params, loss_args)
         updates, opt_state = opt.update(grads, opt_state, params)
         params = optax.apply_updates(params, updates)
         return (params, opt_state), loss
