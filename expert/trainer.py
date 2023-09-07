@@ -76,7 +76,7 @@ def train(
             subkey, datasize, shape=(steps_per_epoch, batch_size)
         )
         teacher_forcing = ep <= (num_epochs * teacher_forcing_factor)
-        trainstate, train_loss, exe_time = train_epoch(
+        trainstate, train_loss = train_epoch(
             trainstate, perm, train_data, discount_factor, teacher_forcing
         )
         if (ep % print_step) == 0:
