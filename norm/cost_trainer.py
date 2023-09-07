@@ -63,6 +63,7 @@ def train_cost_parameters(
     return params, opt_state, jnp.mean(batch_loss)
 
 
+@utils.timeit
 def train(policy_args, opt_args, dataset, num_updates, batch_size, key, id):
     del id
     policy, params = policy_args

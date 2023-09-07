@@ -111,4 +111,5 @@ def run(config_path=None):
 
 
 if __name__ == "__main__":
-    run()
+    config_path = "config/l2_hyperparameters.yaml"
+    run(config_path=config_path)

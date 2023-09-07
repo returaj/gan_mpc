@@ -89,6 +89,7 @@ def train(
             epoch_dynamics_env_rewards,
             epoch_dynamics_train_losses,
             epoch_dynamics_test_losses,
+            dynamics_exe_time,
         ) = dynamics_trainer.train(
             env=env,
             policy_args=(policy, params),
@@ -110,6 +111,7 @@ def train(
             cost_opt_state,
             epoch_cost_train_losses,
             epoch_cost_test_losses,
+            cost_exe_time,
         ) = cost_trainer.train(
             policy_args=(policy, params),
             opt_args=(cost_opt, cost_opt_state),
@@ -133,10 +135,14 @@ def train(
                 f"epoch: {ep} env_reward: {sum(dynamics_env_rewards[-1]):.2f}"
             )
             print(
-                f"dyn_train_loss: {dynamics_train_losses[-1]:.5f} dyn_test_loss: {dynamics_test_losses[-1]:.5f}"
+                f"dyna_exe_time: {dynamics_exe_time:.2f} mins, "
+                f"dyna_train_loss: {dynamics_train_losses[-1]:.5f}, "
+                f"dyna_test_loss: {dynamics_test_losses[-1]:.5f}"
             )
             print(
-                f"cost_train_loss: {cost_train_losses[-1]:.5f} cost_test_loss: {cost_test_losses[-1]:.5f}"
+                f"cost_exe_time: {cost_exe_time:.2f} mins, "
+                f"cost_train_loss: {cost_train_losses[-1]:.5f}, "
+                f"cost_test_loss: {cost_test_losses[-1]:.5f}"
             )
 
     return (
@@ -194,16 +200,6 @@ def run(config_path, dataset_path=None):
     ) = dynamics_out_args
 
     (cost_train_losses, cost_test_losses) = cost_out_args
-
-    # params, train_loss, test_loss = cost_trainer.train(
-    #     policy_args=(policy, params),
-    #     opt_args=(cost_opt, cost_opt_state),
-    #     dataset=cost_dataset,
-    #     num_epochs=config.mpc.train.cost.num_epochs,
-    #     batch_size=config.mpc.train.cost.batch_size,
-    #     key=key,
-    #     print_step=config.mpc.train.cost.print_step,
-    # )
 
     save_config = {
         "loss": {

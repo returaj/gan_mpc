@@ -2,6 +2,7 @@
 
 import json
 import os
+import time
 
 import jax
 import jax.numpy as jnp
@@ -16,6 +17,18 @@ from gan_mpc.dynamics import nn as dynamics_nn
 from gan_mpc.expert import expert_model
 
 _MAIN_DIR_PATH = os.path.dirname(__file__)
+
+
+def timeit(fn):
+    def wrapper_fn(*args, **kwargs):
+        start_time = time.time()
+        ret = fn(*args, **kwargs)
+        exe_time = (time.time() - start_time) / 60
+        if isinstance(ret, tuple):
+            return *ret, exe_time
+        return ret, exe_time
+
+    return wrapper_fn
 
 
 def get_dm_expert_env(name):

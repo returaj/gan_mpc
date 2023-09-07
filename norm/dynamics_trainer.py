@@ -190,6 +190,7 @@ def train_params(
     return params, opt_state, train_losses
 
 
+@utils.timeit
 def train(
     env,
     policy_args,
