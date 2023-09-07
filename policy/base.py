@@ -66,6 +66,11 @@ class BaseMPC:
         xc = jnp.concatenate([x, init_carry], axis=-1)
         return self.solver(xc, init_U, params, cost_args, dynamics_args)
 
+    @functools.partial(jax.jit, static_argnums=0)
+    def get_optimal_action(self, x, params):
+        _, U, *_ = self(x, params)
+        return U[0]
+
     def init(self, mpc_weights, cost_args, dynamics_args, expert_args):
         params = {}
         params["mpc_weights"] = jnp.array(mpc_weights)

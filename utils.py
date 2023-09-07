@@ -236,14 +236,14 @@ def discounted_sum(mat, gamma):
     return curr_sum
 
 
-def run_dm_policy(env, policy_fn, max_interactions):
+def run_dm_policy(env, policy_fn, params, max_interactions):
     states, actions = [], []
     rewards = []
     timestep = env.reset()
     t = 0
     while (not timestep.last()) and (t < max_interactions):
         x = flatten_tree_obs(timestep.observation)
-        u = policy_fn(x)
+        u = policy_fn(x, params)
         timestep = env.step(u)
         t += 1
         states.append(x)
@@ -254,6 +254,19 @@ def run_dm_policy(env, policy_fn, max_interactions):
         jnp.array(actions),
         rewards,
     )
+
+
+def avg_run_dm_policy(env, policy_fn, params, num_runs, max_interactions):
+    avg_reward = 0.0
+    for run in range(1, num_runs + 1):
+        _, _, rwd_list = run_dm_policy(
+            env=env,
+            policy_fn=policy_fn,
+            params=params,
+            max_interactions=max_interactions,
+        )
+        avg_reward += (sum(rwd_list) - avg_reward) / run
+    return avg_reward
 
 
 """Depricated

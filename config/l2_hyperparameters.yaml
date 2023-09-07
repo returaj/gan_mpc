@@ -52,7 +52,9 @@ mpc:
       discount_factor: 0.9
       teacher_forcing_factor: 0.7
       no_grads: ["mpc_weights", "cost_params", "expert_params"]
-
+  evaluate:
+    max_interactions: 1000
+    num_runs_for_avg: 3
 
 
 expert_prediction:

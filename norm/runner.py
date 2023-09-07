@@ -201,6 +201,14 @@ def run(config_path, dataset_path=None):
 
     (cost_train_losses, cost_test_losses) = cost_out_args
 
+    avg_reward = utils.avg_run_dm_policy(
+        env=env,
+        policy_fn=policy.get_optimal_action,
+        params=params,
+        max_interactions=config.mpc.evaluate.max_interactions,
+        num_runs=config.mpc.evaluate.num_runs_for_avg,
+    )
+
     save_config = {
         "loss": {
             "dynamics": {
@@ -212,7 +220,7 @@ def run(config_path, dataset_path=None):
                 "test_loss": round(cost_test_losses[-1], 5),
             },
         },
-        "reward": round(sum(dynamics_env_rewards[-1]), 2),
+        "reward": round(avg_reward, 2),
         "policy": policy_config.to_dict(),
     }
 

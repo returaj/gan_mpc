@@ -31,6 +31,7 @@ def calculate_loss(
     return u_loss + next_s_loss
 
 
+@utils.time
 @jax.jit
 def train_epoch(trainstate, perm, dataset, discount_factor, teacher_forcing):
     s, a, next_s = dataset
@@ -76,7 +77,7 @@ def train(
             subkey, datasize, shape=(steps_per_epoch, batch_size)
         )
         teacher_forcing = ep <= (num_epochs * teacher_forcing_factor)
-        trainstate, train_loss = train_epoch(
+        trainstate, train_loss, exe_time = train_epoch(
             trainstate, perm, train_data, discount_factor, teacher_forcing
         )
         if (ep % print_step) == 0:
@@ -88,7 +89,8 @@ def train(
                 teacher_forcing=False,
             )
             print(
-                f"epoch: {ep} training_loss: {train_loss:.4f} test_loss: {test_loss:.4f}"
+                f"epoch: {ep} exe_time: {exe_time:.2f} mins, "
+                f"training_loss: {train_loss:.4f} test_loss: {test_loss:.4f}"
             )
         epoch_loss.append(train_loss)
 

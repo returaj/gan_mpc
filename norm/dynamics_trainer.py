@@ -209,11 +209,6 @@ def train(
     policy, params = policy_args
     opt, opt_state = opt_args
 
-    @jax.jit
-    def policy_predict_fn(x):
-        _, U, *_ = policy(x, params)
-        return U[0]
-
     if id == 1:
         key, subkey = jax.random.split(key)
         params, opt_state, _ = train_params(
@@ -235,7 +230,8 @@ def train(
         key, subkey = jax.random.split(key)
         state_traj, action_traj, rewards = utils.run_dm_policy(
             env=env,
-            policy_fn=policy_predict_fn,
+            policy_fn=policy.get_optimal_action,
+            params=params,
             max_interactions=max_interactions_per_episode,
         )
         replay_buffer.add(state_traj, action_traj)
