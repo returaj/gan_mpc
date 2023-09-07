@@ -97,8 +97,12 @@ def get_expert_trajectories(config, path=None, num_trajectories=50):
     with open(path, "r") as fp:
         data = json.load(fp)
     sample_data = {}
+    trajs_reward = np.sum(data["rewards"], axis=1)
+    # TODO(returaj) Please remove this magic number of 200,
+    # this is done to ensure expert trajectories are proper.
+    idx = np.argsort(-trajs_reward[trajs_reward > 200])[:num_trajectories]
     for k, v in data.items():
-        sample_data[k] = np.array(v[:num_trajectories])
+        sample_data[k] = np.array(v)[idx]
     return sample_data
 
 
