@@ -12,16 +12,17 @@ class MLP(nn.Module, base.BaseCostNN):
     num_hidden_units: int
     fout: int
 
-    def get_init_params(self, seed, x_size):
+    def get_init_params(self, seed, xc_size):
         key = jax.random.PRNGKey(seed)
-        dummy_x = jnp.zeros(x_size)
-        return (key, dummy_x)
+        dummy_xc = jnp.zeros(xc_size)
+        return (key, dummy_xc)
 
     def get_cost(self, params, x):
         return self.apply(params, x)
 
     @nn.compact
-    def __call__(self, x):
+    def __call__(self, xc):
+        x = xc
         for _ in range(self.num_layers - 1):
             x = nn.relu(nn.Dense(self.num_hidden_units)(x))
         x = nn.Dense(self.fout)(x)
