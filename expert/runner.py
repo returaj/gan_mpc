@@ -26,17 +26,6 @@ def get_train_dataset(config, dataset_path=None, train_split=0.8):
         states.append(jnp.array(seq_states))
         actions.append(jnp.array(seq_actions))
         next_states.append(jnp.array(seq_next_states))
-
-        # traj_len, sdim = s_traj.shape
-        # _, adim = a_traj.shape
-        # num_elems = (traj_len - 1) // seqlen
-        # valid_size = num_elems * seqlen
-        # states.append(s_traj[:valid_size].reshape((num_elems, seqlen, sdim)))
-        # actions.append(a_traj[:valid_size].reshape((num_elems, seqlen, adim)))
-        # next_states.append(
-        #     s_traj[1 : (valid_size + 1)].reshape((num_elems, seqlen, sdim))
-        # )
-
     states = jnp.concatenate(states, axis=0)
     actions = jnp.concatenate(actions, axis=0)
     next_states = jnp.concatenate(next_states, axis=0)
@@ -109,6 +98,26 @@ def run(config_path=None):
         print_step=train_config.print_step,
     )
 
+    env = utils.get_imitator_env(
+        env_type=config.env.type,
+        env_name=config.env.imitator.name,
+        seed=config.seed,
+    )
+
+    @jax.jit
+    def policy_fn(x, params):
+        x = jnp.expand_dims(x, axis=(0, 1))
+        _, batch_useq = trainstate.apply_fn(params, x)
+        return batch_useq[0][0]
+
+    avg_reward = utils.avg_run_dm_policy(
+        env=env,
+        policy_fn=policy_fn,
+        params=trainstate.params,
+        num_runs=3,
+        max_interactions=1000,
+    )
+
     save_config = {
         "loss": {
             "train_loss": round(float(train_loss), 5),
@@ -116,6 +125,7 @@ def run(config_path=None):
         },
         "model": model_config.to_dict(),
         "train": train_config.to_dict(),
+        "avg_reward": round(avg_reward, 2),
     }
 
     dir_path = f"trained_models/expert/{env_type}/{env_name}/"
