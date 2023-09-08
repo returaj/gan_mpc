@@ -158,7 +158,7 @@ def get_masked_labels(all_vars, masked_vars, tx_key, zero_key):
     return labels
 
 
-def get_policy_training_dataset(config, dataset_path=None):
+def get_policy_training_dataset(config, dataset_path=None, traj_len=1000):
     trajectories = get_expert_trajectories(
         config=config,
         path=dataset_path,
@@ -169,7 +169,7 @@ def get_policy_training_dataset(config, dataset_path=None):
     horizon = config.mpc.horizon
     X, Y = [], []
     for s_traj in s_trajs:
-        traj_len, _ = s_traj.shape
+        traj_len = min(s_traj.shape[0], traj_len)
         num_elems = traj_len - horizon
         X.append(s_traj[:num_elems])
         tmp = []

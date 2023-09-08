@@ -8,7 +8,11 @@ from gan_mpc import utils
 
 
 def get_dataset(config, dataset_path, key, train_split=0.8):
-    X, Y = utils.get_policy_training_dataset(config, dataset_path)
+    X, Y = utils.get_policy_training_dataset(
+        config=config,
+        dataset_path=dataset_path,
+        traj_len=config.mpc.train.cost.trajectory_len,
+    )
     X, Y = jnp.array(X), jnp.array(Y)
     data_size = X.shape[0]
     split_pos = int(data_size * train_split)

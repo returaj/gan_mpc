@@ -10,8 +10,9 @@ import optax
 from gan_mpc import utils
 
 
-def from_traj_to_seq(state_traj, action_traj, horizon):
-    num_elems = len(state_traj) - horizon
+def from_traj_to_seq(state_traj, action_traj, horizon, traj_len=1000):
+    traj_len = min(traj_len, len(state_traj))
+    num_elems = traj_len - horizon
     seq_states, seq_actions, seq_next_states = [], [], []
     for i in range(num_elems):
         seq_states.append(state_traj[i : i + horizon])
@@ -31,7 +32,10 @@ def get_dataset(config, dataset_path):
     X, U, Y = [], [], []
     for s_traj, a_traj in zip(s_trajs, a_trajs):
         seq_states, seq_actions, seq_next_states = from_traj_to_seq(
-            s_traj, a_traj, horizon
+            state_traj=s_traj,
+            action_traj=a_traj,
+            horizon=horizon,
+            traj_len=config.mpc.train.dynamics.init_trajectory_len,
         )
         X.append(seq_states)
         U.append(seq_actions)

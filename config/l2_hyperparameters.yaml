@@ -38,11 +38,13 @@ mpc:
     print_after_n_epochs: 1
     cost:
       num_trajectories: 2
+      trajectory_len: 500
       num_updates: 2
       batch_size: 64
       learning_rate: 1.0e-4
       no_grads: ["mpc_weights", "dynamics_params", "expert_params"]
     dynamics:
+      init_trajectory_len: 500
       num_episodes: 2
       max_interactions_per_episode: 200
       replay_buffer_size: 10_000
