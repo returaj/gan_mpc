@@ -77,8 +77,9 @@ def train(
         horizon=config.mpc.horizon, maxlen=dynamics_config.replay_buffer_size
     )
     cost_train_losses, cost_test_losses = [], []
-    dynamics_train_losses, dynamics_test_losses = [], []
-    dynamics_env_rewards = []
+    # default values
+    dynamics_train_losses, dynamics_test_losses = [0.0], [0.0]
+    dynamics_env_rewards = [[0.0]]  # default values
     for ep in range(1, num_epochs + 1):
         key, subkey1, subkey2 = jax.random.split(key, 3)
 

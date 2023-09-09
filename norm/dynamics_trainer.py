@@ -227,9 +227,9 @@ def train(
             id=0,
         )
 
-    episode_rewards = [0.0]  # default set to zero
-    episode_train_losses = [0.0]  # default set to zero
-    episode_test_losses = [0.0]  # default set to zero
+    episode_rewards = []
+    episode_train_losses = []
+    episode_test_losses = []
     for ep in range(1, num_episodes + 1):
         key, subkey = jax.random.split(key)
         state_traj, action_traj, rewards = utils.run_dm_policy(
