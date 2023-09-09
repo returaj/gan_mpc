@@ -77,8 +77,9 @@ def train(
         horizon=config.mpc.horizon, maxlen=dynamics_config.replay_buffer_size
     )
     cost_train_losses, cost_test_losses = [], []
-    dynamics_train_losses, dynamics_test_losses = [], []
-    dynamics_env_rewards = []
+    # default values
+    dynamics_train_losses, dynamics_test_losses = [0.0], [0.0]
+    dynamics_env_rewards = [[0.0]]  # default values
     for ep in range(1, num_epochs + 1):
         key, subkey1, subkey2 = jax.random.split(key, 3)
 
@@ -92,8 +93,9 @@ def train(
             dynamics_exe_time,
         ) = dynamics_trainer.train(
             env=env,
-            policy_args=(policy, params),
-            opt_args=(dynamics_opt, dynamics_opt_state),
+            train_args=(policy, dynamics_opt),
+            opt_state=dynamics_opt_state,
+            params=params,
             dataset=dynamics_dataset,
             replay_buffer=replay_buffer,
             num_episodes=dynamics_config.num_episodes,
@@ -113,8 +115,9 @@ def train(
             epoch_cost_test_losses,
             cost_exe_time,
         ) = cost_trainer.train(
-            policy_args=(policy, params),
-            opt_args=(cost_opt, cost_opt_state),
+            train_args=(policy, cost_opt),
+            opt_state=cost_opt_state,
+            params=params,
             dataset=cost_dataset,
             num_updates=cost_config.num_updates,
             batch_size=cost_config.batch_size,

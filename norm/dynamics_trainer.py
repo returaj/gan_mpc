@@ -10,8 +10,9 @@ import optax
 from gan_mpc import utils
 
 
-def from_traj_to_seq(state_traj, action_traj, horizon):
-    num_elems = len(state_traj) - horizon
+def from_traj_to_seq(state_traj, action_traj, horizon, traj_len=1000):
+    traj_len = min(traj_len, len(state_traj))
+    num_elems = traj_len - horizon
     seq_states, seq_actions, seq_next_states = [], [], []
     for i in range(num_elems):
         seq_states.append(state_traj[i : i + horizon])
@@ -31,7 +32,10 @@ def get_dataset(config, dataset_path):
     X, U, Y = [], [], []
     for s_traj, a_traj in zip(s_trajs, a_trajs):
         seq_states, seq_actions, seq_next_states = from_traj_to_seq(
-            s_traj, a_traj, horizon
+            state_traj=s_traj,
+            action_traj=a_traj,
+            horizon=horizon,
+            traj_len=config.mpc.train.dynamics.init_trajectory_len,
         )
         X.append(seq_states)
         U.append(seq_actions)
@@ -66,10 +70,9 @@ class ReplayBuffer:
         )
 
 
-@functools.partial(jax.jit, static_argnums=(0, 1))
+@functools.partial(jax.jit, static_argnums=0)
 def predict_loss(
-    predict_fn,
-    get_carry_fn,
+    policy,
     params,
     xseq,
     useq,
@@ -84,11 +87,11 @@ def predict_loss(
         xprev, dynamics_carry = carry
         x = jnp.where(teacher_forcing, xseq[t], xprev)
         xc = jnp.concatenate([x, dynamics_carry], axis=-1)
-        next_xc = predict_fn(params, xc, useq[t])
+        next_xc = policy.dynamics(xc, useq[t], 0, params)
         next_x, dynamics_carry = jnp.split(next_xc, [xsize], axis=-1)
         return (next_x, dynamics_carry), next_x
 
-    dynamics_carry = get_carry_fn(xseq[0])
+    dynamics_carry = policy.get_carry(xseq[0])
     _, pred_next_xseq = jax.lax.scan(
         body, (xseq[0], dynamics_carry), jnp.arange(seqlen)
     )
@@ -97,17 +100,20 @@ def predict_loss(
     return jnp.sum(utils.discounted_sum(diff_square, discount_factor))
 
 
+@functools.partial(jax.jit, static_argnums=0)
 def train_per_update(
-    partial_predict_loss_fn,
+    train_args,
+    opt_state,
     params,
-    opt_args,
     perm,
     dataset,
     discount_factor,
     teacher_forcing,
 ):
-    opt, opt_state = opt_args
+    policy, opt = train_args
     X, U, Y = dataset
+
+    partial_predict_loss = functools.partial(predict_loss, policy)
 
     @jax.jit
     def body(carry, p):
@@ -116,7 +122,7 @@ def train_per_update(
 
         def loss_fn(params):
             losses = jax.vmap(
-                partial_predict_loss_fn, in_axes=(None, 0, 0, 0, None, None)
+                partial_predict_loss, in_axes=(None, 0, 0, 0, None, None)
             )(
                 params,
                 batch_x,
@@ -137,8 +143,9 @@ def train_per_update(
 
 
 def train_params(
-    policy_args,
-    opt_args,
+    train_args,
+    opt_state,
+    params,
     dataset,
     num_updates,
     batch_size,
@@ -147,26 +154,6 @@ def train_params(
     key,
     id,
 ):
-    policy, params = policy_args
-    opt, opt_state = opt_args
-
-    predict_fn = lambda params, xc, u: policy.dynamics(xc, u, 0, params)
-    get_carry_fn = lambda x: policy.get_carry(x)
-
-    def partial_predict_loss_fn(
-        params, xseq, useq, next_xseq, discount_factor, teacher_forcing
-    ):
-        return predict_loss(
-            predict_fn=predict_fn,
-            get_carry_fn=get_carry_fn,
-            params=params,
-            xseq=xseq,
-            useq=useq,
-            next_xseq=next_xseq,
-            discount_factor=discount_factor,
-            teacher_forcing=teacher_forcing,
-        )
-
     datasize = dataset[0].shape[0]
     steps_per_update = datasize // batch_size
     train_losses = []
@@ -178,9 +165,9 @@ def train_params(
 
         teacher_forcing = (id + up) <= (num_updates * teacher_forcing_factor)
         params, opt_state, train_loss = train_per_update(
-            partial_predict_loss_fn=partial_predict_loss_fn,
+            train_args=train_args,
+            opt_state=opt_state,
             params=params,
-            opt_args=(opt, opt_state),
             perm=perm,
             dataset=dataset,
             discount_factor=discount_factor,
@@ -193,8 +180,9 @@ def train_params(
 @utils.timeit
 def train(
     env,
-    policy_args,
-    opt_args,
+    train_args,
+    opt_state,
+    params,
     dataset,
     replay_buffer,
     num_episodes,
@@ -206,14 +194,14 @@ def train(
     key,
     id,
 ):
-    policy, params = policy_args
-    opt, opt_state = opt_args
+    policy, opt = train_args
 
     if id == 1:
         key, subkey = jax.random.split(key)
         params, opt_state, _ = train_params(
-            policy_args=(policy, params),
-            opt_args=(opt, opt_state),
+            train_args=(policy, opt),
+            opt_state=opt_state,
+            params=params,
             dataset=dataset,
             num_updates=3,
             batch_size=batch_size,
@@ -225,7 +213,7 @@ def train(
 
     episode_rewards = []
     episode_train_losses = []
-    episode_test_losses = [0.0]  # default set to zero
+    episode_test_losses = []
     for ep in range(1, num_episodes + 1):
         key, subkey = jax.random.split(key)
         state_traj, action_traj, rewards = utils.run_dm_policy(
@@ -239,8 +227,9 @@ def train(
 
         replay_dataset = replay_buffer.get_data()
         params, opt_state, train_losses = train_params(
-            policy_args=(policy, params),
-            opt_args=(opt, opt_state),
+            train_args=(policy, opt),
+            opt_state=opt_state,
+            params=params,
             dataset=replay_dataset,
             num_updates=num_updates,
             batch_size=batch_size,
