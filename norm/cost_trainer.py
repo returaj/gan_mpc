@@ -1,5 +1,7 @@
 """norm based cost parameters training."""
 
+import functools
+
 import jax
 import jax.numpy as jnp
 import optax
@@ -29,8 +31,8 @@ def get_dataset(config, dataset_path, key, train_split=0.8):
     return (train_dataset, test_dataset)
 
 
-def calculate_loss(policy_args, dataset):
-    policy, params = policy_args
+@functools.partial(jax.jit, static_argnums=0)
+def calculate_loss(policy, params, dataset):
     batch_x, batch_y = dataset
 
     func = jax.jit(lambda x: policy(x, params))
@@ -41,14 +43,15 @@ def calculate_loss(policy_args, dataset):
     return jnp.mean(batch_loss)
 
 
+@functools.partial(jax.jit, static_argnums=0)
 def train_cost_parameters(
-    policy_args,
-    opt_args,
+    train_args,
+    opt_state,
+    params,
     perm,
     dataset,
 ):
-    policy, params = policy_args
-    opt, opt_state = opt_args
+    policy, opt = train_args
     X, Y = dataset
 
     @jax.jit
@@ -68,10 +71,11 @@ def train_cost_parameters(
 
 
 @utils.timeit
-def train(policy_args, opt_args, dataset, num_updates, batch_size, key, id):
+def train(
+    train_args, opt_state, params, dataset, num_updates, batch_size, key, id
+):
     del id
-    policy, params = policy_args
-    opt, opt_state = opt_args
+    policy, opt = train_args
     train_data, test_data = dataset
     datasize = train_data[0].shape[0]
     steps_per_update = datasize // batch_size
@@ -82,13 +86,14 @@ def train(policy_args, opt_args, dataset, num_updates, batch_size, key, id):
             subkey, datasize, shape=(steps_per_update, batch_size)
         )
         params, opt_state, train_loss = train_cost_parameters(
-            policy_args=(policy, params),
-            opt_args=(opt, opt_state),
+            train_args=(policy, opt),
+            opt_state=opt_state,
+            params=params,
             perm=perm,
             dataset=train_data,
         )
         test_loss = calculate_loss(
-            policy_args=(policy, params), dataset=test_data
+            policy=policy, params=params, dataset=test_data
         )
         train_losses.append(float(train_loss))
         test_losses.append(float(test_loss))

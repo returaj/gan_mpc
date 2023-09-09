@@ -93,8 +93,9 @@ def train(
             dynamics_exe_time,
         ) = dynamics_trainer.train(
             env=env,
-            policy_args=(policy, params),
-            opt_args=(dynamics_opt, dynamics_opt_state),
+            train_args=(policy, dynamics_opt),
+            opt_state=dynamics_opt_state,
+            params=params,
             dataset=dynamics_dataset,
             replay_buffer=replay_buffer,
             num_episodes=dynamics_config.num_episodes,
@@ -114,8 +115,9 @@ def train(
             epoch_cost_test_losses,
             cost_exe_time,
         ) = cost_trainer.train(
-            policy_args=(policy, params),
-            opt_args=(cost_opt, cost_opt_state),
+            train_args=(policy, cost_opt),
+            opt_state=cost_opt_state,
+            params=params,
             dataset=cost_dataset,
             num_updates=cost_config.num_updates,
             batch_size=cost_config.batch_size,
