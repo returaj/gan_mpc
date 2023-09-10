@@ -39,7 +39,8 @@ class JS_MPC(base.BaseMPC):
 
     def critic_loss(self, xseq, label, params):
         critic_params = params["critic_params"]
-        p = self.critic_model.predict(xseq, critic_params)
+        score = self.critic_model.predict(xseq, critic_params)
+        p = jax.nn.sigmoid(score)
         p = jnp.where(label > 0, p, 1 - p)
         return -jnp.log(p)
 
@@ -56,13 +57,17 @@ class JS_MPC(base.BaseMPC):
         return loss, grads
 
     @functools.partial(jax.jit, static_argnums=0)
-    def generator_loss(self, xcseq, useq, actual_xseq, params):
+    def generator_loss(self, xcseq, useq, params, actual_xseq):
         del useq
         critic_params = params["critic_params"]
         x_size = actual_xseq.shape[-1]
         xseq, _ = jnp.split(xcseq, [x_size], axis=-1)
-        p = self.critic_model.predict(xseq, critic_params)
+        score = self.critic_model.predict(xseq, critic_params)
+        p = jax.nn.sigmoid(score)
         return -jnp.log(p) + jnp.log(1 - p)
 
-    def loss(self, XC, U, desired_X, params):
-        return self.generator_loss(XC, U, desired_X, params)
+    def generator_loss_and_grad(self, batch_xseq, params, batch_loss_args):
+        return self.loss_and_grad(batch_xseq, params, batch_loss_args)
+
+    def loss(self, XC, U, params, desired_X):
+        return self.generator_loss(XC, U, params, desired_X)

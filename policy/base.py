@@ -105,7 +105,7 @@ class BaseMPC:
         init_carry = self.get_carry(x)
         return goal_X, init_U, init_carry
 
-    def loss(self, XC, U, *args):
+    def loss(self, XC, U, params, *args):
         raise NotImplementedError
 
     @functools.partial(jax.jit, static_argnums=(0,))
