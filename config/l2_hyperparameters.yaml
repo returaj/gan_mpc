@@ -39,16 +39,16 @@ mpc:
     cost:
       num_trajectories: 2
       trajectory_len: 500
-      num_updates: 2
+      num_updates: 3
       batch_size: 64
       learning_rate: 1.0e-4
       no_grads: ["mpc_weights", "dynamics_params", "expert_params"]
     dynamics:
       init_trajectory_len: 500
-      num_episodes: 2
+      num_episodes: 1
       max_interactions_per_episode: 200
       replay_buffer_size: 10_000
-      num_updates: 3
+      num_updates: 1
       batch_size: 64
       learning_rate: 1.0e-4
       discount_factor: 0.9
@@ -56,7 +56,8 @@ mpc:
       no_grads: ["mpc_weights", "cost_params", "expert_params"]
   evaluate:
     max_interactions: 1000
-    num_runs_for_avg: 3
+    num_runs_for_avg: 1
+    save_video: False
 
 
 expert_prediction:
