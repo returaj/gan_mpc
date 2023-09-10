@@ -241,13 +241,14 @@ def run(config_path, dataset_path=None):
         (cost_test_losses, "cost_test_losses.json"),
     )
 
-    utils.save_video(
-        env=env,
-        policy_fn=policy.get_optimal_action,
-        params=params,
-        dir_path=abs_dir_path,
-        file_path="video.mp4",
-    )
+    if config.mpc.evaluate.save_video:
+        utils.save_video(
+            env=env,
+            policy_fn=policy.get_optimal_action,
+            params=params,
+            dir_path=abs_dir_path,
+            file_path="video.mp4",
+        )
 
 
 if __name__ == "__main__":
