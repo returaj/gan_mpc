@@ -4,6 +4,7 @@ import json
 import os
 import time
 
+import imageio
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -137,6 +138,7 @@ def save_all_args(dir_path, params, model_config, *other_json_args):
     # save json data
     for json_data, name in other_json_args:
         save_json(json_data, full_path, name)
+    return full_path
 
 
 def load_params(params_path, from_np=True):
@@ -240,8 +242,20 @@ def discounted_sum(mat, gamma):
     return curr_sum
 
 
-def run_dm_policy(env, policy_fn, params, max_interactions):
+def save_video(env, policy_fn, params, dir_path, file_path):
+    abs_path = os.path.join(_MAIN_DIR_PATH, dir_path, file_path)
+    _, _, frames, _ = run_dm_policy(
+        env, policy_fn, params, 1000, with_frames=True
+    )
+    writer = imageio.get_writer(abs_path, fps=30)
+    for f in frames:
+        writer.append_data(f)
+    writer.close()
+
+
+def run_dm_policy(env, policy_fn, params, max_interactions, with_frames=False):
     states, actions = [], []
+    frames = []
     rewards = []
     timestep = env.reset()
     t = 0
@@ -250,12 +264,15 @@ def run_dm_policy(env, policy_fn, params, max_interactions):
         u = policy_fn(x, params)
         timestep = env.step(u)
         t += 1
+        if with_frames and (len(frames) < env.physics.data.time * 30):
+            frames.append(env.physics.render(camera_id=0, width=240))
         states.append(x)
         actions.append(u)
         rewards.append(timestep.reward)
     return (
         jnp.array(states),
         jnp.array(actions),
+        frames,
         rewards,
     )
 
@@ -263,7 +280,7 @@ def run_dm_policy(env, policy_fn, params, max_interactions):
 def avg_run_dm_policy(env, policy_fn, params, num_runs, max_interactions):
     avg_reward = 0.0
     for run in range(1, num_runs + 1):
-        _, _, rwd_list = run_dm_policy(
+        _, _, _, rwd_list = run_dm_policy(
             env=env,
             policy_fn=policy_fn,
             params=params,

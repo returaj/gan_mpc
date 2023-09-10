@@ -230,7 +230,7 @@ def run(config_path, dataset_path=None):
     env_type, env_name = config.env.type, config.env.expert.name
     dir_path = f"trained_models/imitator/{env_type}/{env_name}/l2/"
 
-    utils.save_all_args(
+    abs_dir_path = utils.save_all_args(
         dir_path,
         params,
         save_config,
@@ -239,6 +239,14 @@ def run(config_path, dataset_path=None):
         (dynamics_test_losses, "dynamics_test_losses.json"),
         (cost_train_losses, "cost_train_losses.json"),
         (cost_test_losses, "cost_test_losses.json"),
+    )
+
+    utils.save_video(
+        env=env,
+        policy_fn=policy.get_optimal_action,
+        params=params,
+        dir_path=abs_dir_path,
+        file_path="video.mp4",
     )
 
 
