@@ -15,6 +15,8 @@ from gan_mpc.cost import cost_model
 from gan_mpc.cost import nn as cost_nn
 from gan_mpc.dynamics import dynamics_model
 from gan_mpc.dynamics import nn as dynamics_nn
+from gan_mpc.critic import critic_model
+from gan_mpc.critic import nn as critic_nn
 from gan_mpc.expert import expert_model
 
 _MAIN_DIR_PATH = os.path.dirname(__file__)
@@ -213,6 +215,20 @@ def get_dynamics_model(config, x_size):
     else:
         raise ValueError("Choose either mlp or lstm model.")
     return dynamics_model.DynamicsModel(config, nn_model), model_config
+
+
+def get_critic_model(config):
+    model_config = config.mpc.model.critic
+    if model_config.use == "lstm":
+        lstm_config = model_config.lstm
+        nn_model = critic_nn.LSTM(
+            lstm_features=lstm_config.lstm_features,
+            num_layers=lstm_config.num_layers,
+            num_hidden_units=lstm_config.num_hidden_units,
+        )
+    else:
+        raise ValueError("Choose lstm model.")
+    return critic_model.CriticModel(config, nn_model), model_config
 
 
 def get_expert_model(config, x_size, u_size):

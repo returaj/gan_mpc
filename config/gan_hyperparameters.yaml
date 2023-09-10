@@ -1,0 +1,91 @@
+# hyperparameters 
+
+seed: 0
+
+env:
+  type: "dmcontrol"  # options: dmcontrol, brax
+  expert:
+    name: "cartpole_balance"
+  imitator:
+    name: "cartpole_balance"
+
+
+mpc:
+  horizon: 5
+  model:
+    cost:
+      weights:
+        action: 1.0
+        state: 3.0
+        terminal: 1.0
+      mlp:
+        num_layers: 3
+        num_hidden_units: 128
+        fout: 10
+    dynamics:
+      use: "lstm"
+      mlp:
+        num_layers: 3
+        num_hidden_units: 128
+      lstm:
+        lstm_features: 64
+        num_layers: 3
+        num_hidden_units: 128
+    critic:
+      use: "lstm"
+      lstm:
+        lstm_features: 64
+        num_layers: 2
+        num_hidden_units: 128
+    expert:
+      load_id: "2"
+  train:
+    num_epochs: 5
+    print_after_n_epochs: 1
+    cost:
+      num_trajectories: 2
+      trajectory_len: 500
+      num_updates: 3
+      batch_size: 64
+      learning_rate: 1.0e-4
+      no_grads: ["mpc_weights", "dynamics_params", "critic_params", "expert_params"]
+    dynamics:
+      init_trajectory_len: 500
+      num_episodes: 1
+      max_interactions_per_episode: 200
+      replay_buffer_size: 10_000
+      num_updates: 1
+      batch_size: 64
+      learning_rate: 1.0e-4
+      discount_factor: 0.9
+      teacher_forcing_factor: 0.7
+      no_grads: ["mpc_weights", "cost_params", "critic_params", "expert_params"]
+    critic:
+      num_updates: 2
+      batch_size: 64
+      learning_rate: 1.0e-4
+      no_grads: ["mpc_weights", "cost_params", "dynamics_params", "expert_params"]
+  evaluate:
+    max_interactions: 1000
+    num_runs_for_avg: 1
+    save_video: False
+
+
+expert_prediction:
+  model:
+    use: "mlp"
+    mlp:
+      num_layers: 3
+      num_hidden_units: 128
+    lstm:
+      lstm_features: 128
+      num_layers: 3
+      num_hidden_units: 128
+  train:
+    num_epochs: 10
+    batch_size: 64
+    seqlen: 10
+    learning_rate: 1.0e-4
+    discount_factor: 0.9
+    teacher_forcing_factor: 0.7
+    print_step: 10

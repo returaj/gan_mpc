@@ -16,7 +16,7 @@ class JS_MPC(base.BaseMPC):
         dynamics_model,
         expert_model,
         critic_model,
-        loss_vmap=(0, None),
+        loss_vmap=(0,),
         trajax_ilqr_kwargs=base.TRAJAX_iLQR_KWARGS,
     ):
         super().__init__(
