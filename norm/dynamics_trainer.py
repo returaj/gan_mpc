@@ -216,7 +216,7 @@ def train(
     episode_test_losses = []
     for ep in range(1, num_episodes + 1):
         key, subkey = jax.random.split(key)
-        state_traj, action_traj, rewards = utils.run_dm_policy(
+        state_traj, action_traj, _, rewards = utils.run_dm_policy(
             env=env,
             policy_fn=policy.get_optimal_action,
             params=params,
