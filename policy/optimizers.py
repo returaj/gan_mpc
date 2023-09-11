@@ -55,6 +55,8 @@ def bilevel_optimization(
         wrapped_cost, wrapped_dynamics, x0, init_U, **trajax_ilqr_kwargs
     )
 
+    loss_args = (params,) + loss_args
+
     B = loss_grad_wrt_control(
         loss, wrapped_dynamics, x0, U, loss_args
     ).reshape((T * m,))

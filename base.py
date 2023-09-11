@@ -8,7 +8,7 @@ class BaseCostModel:
     def init(self, *args):
         raise NotImplementedError
 
-    def get_cost(x, u, t, *cost_args):
+    def get_cost(self, x, u, t, *cost_args):
         raise NotImplementedError
 
 
@@ -19,7 +19,18 @@ class BaseDynamicsModel:
     def init(self, *args):
         raise NotImplementedError
 
-    def predict(x, u, t, *dynamics_args):
+    def predict(self, x, u, t, *dynamics_args):
+        raise NotImplementedError
+
+
+class BaseCriticModel:
+    def __init__(self, config):
+        self.config = config
+
+    def init(self, *args):
+        raise NotImplementedError
+
+    def predict(self, xseq, *args):
         raise NotImplementedError
 
 

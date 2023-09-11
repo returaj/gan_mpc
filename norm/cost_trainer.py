@@ -37,8 +37,8 @@ def calculate_loss(policy, params, dataset):
 
     func = jax.jit(lambda x: policy(x, params))
     pred_y, pred_u, *_ = jax.vmap(func, in_axes=(0,))(batch_x)
-    batch_loss = jax.vmap(policy.loss, in_axes=(0, 0, 0))(
-        pred_y, pred_u, batch_y
+    batch_loss = jax.vmap(policy.loss, in_axes=(0, 0, None, 0))(
+        pred_y, pred_u, params, batch_y
     )
     return jnp.mean(batch_loss)
 
