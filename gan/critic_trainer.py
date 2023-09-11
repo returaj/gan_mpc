@@ -1,6 +1,7 @@
 """critic parameters training."""
 
 import functools
+
 import jax
 import jax.numpy as jnp
 import optax
