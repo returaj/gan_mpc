@@ -122,7 +122,7 @@ def train(
             train_args=(policy, critic_opt),
             opt_state=critic_opt_state,
             params=params,
-            dataset=cost_dataset,
+            true_dataset=cost_dataset,
             num_updates=critic_config.num_updates,
             batch_size=critic_config.batch_size,
             key=subkey2,

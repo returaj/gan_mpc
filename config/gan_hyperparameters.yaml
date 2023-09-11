@@ -35,8 +35,8 @@ mpc:
       use: "lstm"
       lstm:
         lstm_features: 64
-        num_layers: 2
-        num_hidden_units: 128
+        num_layers: 1
+        num_hidden_units: 64
     expert:
       load_id: "2"
   train:
