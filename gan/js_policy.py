@@ -36,6 +36,7 @@ class JS_MPC(base.BaseMPC):
             mpc_weights, cost_args, dynamics_args, expert_args
         )
         params["critic_params"] = self.critic_model.init(*critic_args)
+        return params
 
     def critic_loss(self, xseq, label, params):
         critic_params = params["critic_params"]
@@ -64,7 +65,7 @@ class JS_MPC(base.BaseMPC):
         xseq, _ = jnp.split(xcseq, [x_size], axis=-1)
         score = self.critic_model.predict(xseq, critic_params)
         p = jax.nn.sigmoid(score)
-        return -jnp.log(p) + jnp.log(1 - p)
+        return jnp.mean(-jnp.log(p) + jnp.log(1 - p))
 
     def generator_loss_and_grad(self, batch_xseq, params, batch_loss_args):
         return self.loss_and_grad(batch_xseq, params, batch_loss_args)

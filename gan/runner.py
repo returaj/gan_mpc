@@ -177,6 +177,13 @@ def train(
                 f"cost_test_loss: {cost_test_losses[-1]:.5f}"
             )
 
+    return (
+        params,
+        (dynamics_env_rewards, dynamics_train_losses, dynamics_test_losses),
+        (critic_train_losses, critic_test_losses),
+        (cost_train_losses, cost_test_losses),
+    )
+
 
 def run(config_path, dataset_path=None):
     config = utils.get_config(config_path)
@@ -272,6 +279,8 @@ def run(config_path, dataset_path=None):
         (dynamics_env_rewards, "dynamics_env_rewards.json"),
         (dynamics_train_losses, "dynamics_train_losses.json"),
         (dynamics_test_losses, "dynamics_test_losses.json"),
+        (critic_train_losses, "critic_train_losses.json"),
+        (critic_test_losses, "critic_test_losses.json"),
         (cost_train_losses, "cost_train_losses.json"),
         (cost_test_losses, "cost_test_losses.json"),
     )
