@@ -1,5 +1,6 @@
 """Cost Model for GAN-MPC."""
 
+import jax
 import jax.numpy as jnp
 
 from gan_mpc import base
@@ -28,6 +29,7 @@ class MujocoBasedModel(base.BaseCostModel):
     def get_cost(self, xc, u, t, params, weights, goal_X):
         horizon = self.config.mpc.horizon
         goal = goal_X[t]
+        weights = jax.nn.sigmoid(weights)
         return jnp.where(
             t == horizon,
             self._get_terminal_cost(xc, weights[-1], params),
