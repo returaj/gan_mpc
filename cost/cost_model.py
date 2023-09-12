@@ -1,4 +1,5 @@
 """Cost Model for GAN-MPC."""
+
 import jax
 import jax.numpy as jnp
 
