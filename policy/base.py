@@ -73,7 +73,7 @@ class BaseMPC:
 
     def init(self, mpc_weights, cost_args, dynamics_args, expert_args):
         params = {}
-        params["mpc_weights"] = jnp.array(mpc_weights)
+        params["mpc_weights"] = jnp.array(mpc_weights, dtype=jnp.float32)
         params["cost_params"] = self.cost_model.init(*cost_args)
         params["dynamics_params"] = self.dynamics_model.init(*dynamics_args)
         params["expert_params"] = self.expert_model.init(*expert_args)
