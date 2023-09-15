@@ -42,6 +42,7 @@ mpc:
       num_updates: 3
       batch_size: 64
       learning_rate: 1.0e-4
+      polyak_factor: 0.99
       no_grads: ["dynamics_params", "expert_params"]
     dynamics:
       init_trajectory_len: 500

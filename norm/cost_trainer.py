@@ -72,11 +72,20 @@ def train_cost_parameters(
 
 @utils.timeit
 def train(
-    train_args, opt_state, params, dataset, num_updates, batch_size, key, id
+    train_args,
+    opt_state,
+    params,
+    dataset,
+    num_updates,
+    batch_size,
+    polyak_factor,
+    key,
+    id,
 ):
     del id
     policy, opt = train_args
     train_data, test_data = dataset
+    prev_params = params
     datasize = train_data[0].shape[0]
     steps_per_update = datasize // batch_size
     train_losses, test_losses = [], []
@@ -98,4 +107,9 @@ def train(
         train_losses.append(float(train_loss))
         test_losses.append(float(test_loss))
 
+    params = jax.tree_map(
+        lambda x, y: polyak_factor * x + (1 - polyak_factor) * y,
+        prev_params,
+        params,
+    )
     return params, opt_state, train_losses, test_losses
