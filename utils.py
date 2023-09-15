@@ -104,7 +104,7 @@ def get_expert_trajectories(config, path=None, num_trajectories=50):
     # TODO(returaj) Please remove this magic number of 200,
     # this is done to ensure expert trajectories are proper.
     idx = np.argsort(-trajs_reward)
-    idx = list(filter(lambda x: trajs_reward[x] > 700), idx)[:num_trajectories]
+    idx = list(filter(lambda x: trajs_reward[x] > 700, idx))[:num_trajectories]
     for k, v in data.items():
         sample_data[k] = np.array(v)[idx]
     return sample_data
