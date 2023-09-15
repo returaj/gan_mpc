@@ -115,6 +115,7 @@ def train(
             dataset=cost_dataset,
             num_updates=cost_config.num_updates,
             batch_size=cost_config.batch_size,
+            polyak_factor=cost_config.polyak_factor,
             key=subkey2,
             id=ep,
         )

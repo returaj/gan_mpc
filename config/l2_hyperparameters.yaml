@@ -15,18 +15,18 @@ mpc:
   model:
     cost:
       weights:
-        action: 1.0
+        action: -1.0
         state: 3.0
-        terminal: 1.0
+        terminal: -3.0
       mlp:
         num_layers: 3
         num_hidden_units: 128
         fout: 10
     dynamics:
-      use: "lstm"
+      use: "mlp"
       mlp:
-        num_layers: 3
-        num_hidden_units: 128
+        num_layers: 4
+        num_hidden_units: 200
       lstm:
         lstm_features: 64
         num_layers: 3
@@ -42,7 +42,8 @@ mpc:
       num_updates: 3
       batch_size: 64
       learning_rate: 1.0e-4
-      no_grads: ["mpc_weights", "dynamics_params", "expert_params"]
+      polyak_factor: 0.99
+      no_grads: ["dynamics_params", "expert_params"]
     dynamics:
       init_trajectory_len: 500
       num_episodes: 1
