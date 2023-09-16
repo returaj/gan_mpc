@@ -57,19 +57,19 @@ class BaseMPC:
 
     def __call__(self, x, params):
         (
-            goal_X,
-            init_U,
+            goal_xseq,
+            init_useq,
             init_carry,
         ) = self.get_goal_states_init_actions_and_carry(x, params)
-        cost_args = (goal_X,)
+        cost_args = (goal_xseq,)
         dynamics_args = ()
         xc = jnp.concatenate([x, init_carry], axis=-1)
-        return self.solver(xc, init_U, params, cost_args, dynamics_args)
+        return self.solver(xc, init_useq, params, cost_args, dynamics_args)
 
     @functools.partial(jax.jit, static_argnums=0)
     def get_optimal_action(self, x, params):
-        _, U, *_ = self(x, params)
-        return U[0]
+        _, useq, *_ = self(x, params)
+        return useq[0]
 
     def init(self, mpc_weights, cost_args, dynamics_args, expert_args):
         params = {}
@@ -105,21 +105,21 @@ class BaseMPC:
         init_carry = self.get_carry(x)
         return goal_X, init_U, init_carry
 
-    def loss(self, XC, U, params, *args):
+    def loss(self, xcseq, useq, params, *args):
         raise NotImplementedError
 
     @functools.partial(jax.jit, static_argnums=(0,))
     def loss_and_grad(self, X, params, batch_loss_args):
         @jax.jit
-        def func(x0, params, *loss_args):
+        def func(x, params, *loss_args):
             (
-                goal_X,
-                init_U,
+                goal_xseq,
+                init_useq,
                 init_carry,
-            ) = self.get_goal_states_init_actions_and_carry(x0, params)
-            cost_args = (goal_X,)
+            ) = self.get_goal_states_init_actions_and_carry(x, params)
+            cost_args = (goal_xseq,)
             dynamics_args = ()
-            xc = jnp.concatenate([x0, init_carry], axis=-1)
+            xc = jnp.concatenate([x, init_carry], axis=-1)
             (
                 high_level_loss,
                 _,
@@ -130,7 +130,7 @@ class BaseMPC:
                 self.dynamics,
                 self.loss,
                 xc,
-                init_U,
+                init_useq,
                 params,
                 cost_args,
                 dynamics_args,

@@ -70,5 +70,5 @@ class JS_MPC(base.BaseMPC):
     def generator_loss_and_grad(self, batch_xseq, params, batch_loss_args):
         return self.loss_and_grad(batch_xseq, params, batch_loss_args)
 
-    def loss(self, XC, U, params, desired_X):
-        return self.generator_loss(XC, U, params, desired_X)
+    def loss(self, xcseq, useq, params, desired_xseq):
+        return self.generator_loss(xcseq, useq, params, desired_xseq)

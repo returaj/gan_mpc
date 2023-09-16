@@ -10,9 +10,9 @@ from gan_mpc.policy import base
 
 class L2MPC(base.BaseMPC):
     @functools.partial(jax.jit, static_argnums=(0,))
-    def loss(self, XC, U, params, desired_X):
-        del U, params
-        x_size = desired_X.shape[-1]
-        X, _ = jnp.split(XC, [x_size], axis=-1)
-        diff = (X - desired_X) ** 2
+    def loss(self, xcseq, useq, params, desired_xseq):
+        del useq, params
+        x_size = desired_xseq.shape[-1]
+        xseq, _ = jnp.split(xcseq, [x_size], axis=-1)
+        diff = (xseq - desired_xseq) ** 2
         return jnp.sum(jnp.mean(diff, axis=0))
