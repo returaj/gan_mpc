@@ -13,10 +13,10 @@ from dm_control import suite
 from gan_mpc.config import load_config
 from gan_mpc.cost import cost_model
 from gan_mpc.cost import nn as cost_nn
-from gan_mpc.dynamics import dynamics_model
-from gan_mpc.dynamics import nn as dynamics_nn
 from gan_mpc.critic import critic_model
 from gan_mpc.critic import nn as critic_nn
+from gan_mpc.dynamics import dynamics_model
+from gan_mpc.dynamics import nn as dynamics_nn
 from gan_mpc.expert import expert_model
 
 _MAIN_DIR_PATH = os.path.dirname(__file__)
@@ -270,15 +270,19 @@ def save_video(env, policy_fn, params, dir_path, file_path):
     writer.close()
 
 
-def run_dm_policy(env, policy_fn, params, max_interactions, with_frames=False):
+def run_dm_policy(
+    env, policy_fn, params, buffer, max_interactions, with_frames=False
+):
     states, actions = [], []
     frames = []
     rewards = []
+    buffer.clear()
     timestep = env.reset()
     t = 0
     while (not timestep.last()) and (t < max_interactions):
         x = flatten_tree_obs(timestep.observation)
-        u = policy_fn(x, params)
+        buffer.append(x)
+        u = policy_fn(params, jnp.array(buffer))
         timestep = env.step(u)
         t += 1
         if with_frames and (len(frames) < env.physics.data.time * 30):
@@ -294,13 +298,16 @@ def run_dm_policy(env, policy_fn, params, max_interactions, with_frames=False):
     )
 
 
-def avg_run_dm_policy(env, policy_fn, params, num_runs, max_interactions):
+def avg_run_dm_policy(
+    env, policy_fn, params, buffer, num_runs, max_interactions
+):
     avg_reward = 0.0
     for run in range(1, num_runs + 1):
         _, _, _, rwd_list = run_dm_policy(
             env=env,
             policy_fn=policy_fn,
             params=params,
+            buffer=buffer,
             max_interactions=max_interactions,
         )
         avg_reward += (sum(rwd_list) - avg_reward) / run
