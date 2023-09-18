@@ -122,7 +122,7 @@ def run(config_path=None):
         env=env,
         policy_fn=policy_fn,
         params=trainstate.params,
-        buffer_x=collections.deque(maxlen=train_config.seqlen),
+        buffer_x=collections.deque(maxlen=train_config.seqlen + 1),
         buffer_u=collections.deque(maxlen=train_config.seqlen),
         num_runs=3,
         max_interactions=1000,
