@@ -12,6 +12,7 @@ env:
 
 mpc:
   horizon: 5
+  history: 1  # need value > 1
   model:
     cost:
       weights:
@@ -23,7 +24,7 @@ mpc:
         num_hidden_units: 128
         fout: 10
     dynamics:
-      use: "lstm"
+      use: "mlp"
       mlp:
         num_layers: 4
         num_hidden_units: 200
@@ -32,7 +33,7 @@ mpc:
         num_layers: 3
         num_hidden_units: 128
     expert:
-      load_id: "2"
+      load_id: "3"
   train:
     num_epochs: 2
     print_after_n_epochs: 1
@@ -58,7 +59,7 @@ mpc:
   evaluate:
     max_interactions: 1000
     num_runs_for_avg: 1
-    save_video: False
+    save_video: True
 
 
 expert_prediction:

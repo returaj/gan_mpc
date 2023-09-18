@@ -5,7 +5,7 @@ import functools
 import jax
 import jax.numpy as jnp
 
-from gan_mpc.policy import base
+from gan_mpc.policy import base, eval
 
 
 class JS_MPC(base.BaseMPC):
@@ -17,7 +17,7 @@ class JS_MPC(base.BaseMPC):
         expert_model,
         critic_model,
         loss_vmap=(0,),
-        trajax_ilqr_kwargs=base.TRAJAX_iLQR_KWARGS,
+        trajax_ilqr_kwargs=eval.TRAJAX_iLQR_KWARGS,
     ):
         super().__init__(
             config,

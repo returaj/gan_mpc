@@ -91,7 +91,9 @@ def predict_loss(
         next_x, dynamics_carry = jnp.split(next_xc, [xsize], axis=-1)
         return (next_x, dynamics_carry), next_x
 
-    dynamics_carry = policy.get_carry(xseq[0])
+    dynamics_carry = policy.get_dynamics_carry(
+        jnp.expand_dims(xseq[0], axis=0)
+    )
     _, pred_next_xseq = jax.lax.scan(
         body, (xseq[0], dynamics_carry), jnp.arange(seqlen)
     )
@@ -184,7 +186,7 @@ def train(
     opt_state,
     params,
     dataset,
-    replay_buffer,
+    buffers,
     num_episodes,
     max_interactions_per_episode,
     num_updates,
@@ -194,12 +196,13 @@ def train(
     key,
     id,
 ):
-    policy, opt = train_args
+    train_policy, eval_policy, opt = train_args
+    replay_buffer, buffer_x, buffer_u = buffers
 
     if id == 1:
         key, subkey = jax.random.split(key)
         params, opt_state, _ = train_params(
-            train_args=(policy, opt),
+            train_args=(train_policy, opt),
             opt_state=opt_state,
             params=params,
             dataset=dataset,
@@ -218,8 +221,10 @@ def train(
         key, subkey = jax.random.split(key)
         state_traj, action_traj, _, rewards = utils.run_dm_policy(
             env=env,
-            policy_fn=policy.get_optimal_action,
+            policy_fn=eval_policy.get_optimal_action,
             params=params,
+            buffer_x=buffer_x,
+            buffer_u=buffer_u,
             max_interactions=max_interactions_per_episode,
         )
         replay_buffer.add(state_traj, action_traj)
@@ -227,7 +232,7 @@ def train(
 
         replay_dataset = replay_buffer.get_data()
         params, opt_state, train_losses = train_params(
-            train_args=(policy, opt),
+            train_args=(train_policy, opt),
             opt_state=opt_state,
             params=params,
             dataset=replay_dataset,
@@ -243,7 +248,7 @@ def train(
     return (
         params,
         opt_state,
-        replay_buffer,
+        (replay_buffer, buffer_x, buffer_u),
         episode_rewards,
         episode_train_losses,
         episode_test_losses,

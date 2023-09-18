@@ -17,12 +17,12 @@ def get_dataset(policy, params, true_dataset, key):
         true_label = jnp.ones(datasize, dtype=jnp.float32)
         xsize = X.shape[-1]
 
-        def predict(x, params):
-            xc, *_ = policy(x, params)
+        def predict(params, x):
+            xc, *_ = policy.get_optimal_values(params, x)
             y, _ = jnp.split(xc, [xsize], axis=-1)
             return y
 
-        pred_Y = jax.vmap(predict, in_axes=(0, None))(X, params)
+        pred_Y = jax.vmap(predict, in_axes=(None, 0))(params, X)
         pred_label = -1 * jnp.ones(datasize, dtype=jnp.float32)
 
         return (

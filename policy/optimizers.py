@@ -1,6 +1,7 @@
 """Base MPC optimizer functions."""
 
 import functools
+
 import jax
 import jax.numpy as jnp
 import trajax.optimizers as trajax_opt

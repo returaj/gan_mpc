@@ -112,7 +112,8 @@ def run(config_path=None):
     )
 
     @jax.jit
-    def policy_fn(params, histroy_x):
+    def policy_fn(params, histroy_x, history_u):
+        del history_u
         histroy_x = jnp.expand_dims(histroy_x, axis=0)
         _, batch_useq = trainstate.apply_fn(params, histroy_x, True)
         return batch_useq[0][-1]
@@ -121,7 +122,8 @@ def run(config_path=None):
         env=env,
         policy_fn=policy_fn,
         params=trainstate.params,
-        buffer=collections.deque(maxlen=train_config.seqlen),
+        buffer_x=collections.deque(maxlen=train_config.seqlen),
+        buffer_u=collections.deque(maxlen=train_config.seqlen),
         num_runs=3,
         max_interactions=1000,
     )
