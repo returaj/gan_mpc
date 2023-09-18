@@ -35,7 +35,7 @@ def get_dataset(config, dataset_path, key, train_split=0.8):
 def calculate_loss(policy, params, dataset):
     batch_x, batch_y = dataset
 
-    func = jax.jit(lambda x: policy(x, params))
+    func = jax.jit(lambda x: policy.get_optimal_values(params, x))
     pred_y, pred_u, *_ = jax.vmap(func, in_axes=(0,))(batch_x)
     batch_loss = jax.vmap(policy.loss, in_axes=(0, 0, None, 0))(
         pred_y, pred_u, params, batch_y

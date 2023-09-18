@@ -50,8 +50,28 @@ class ExpertModel:
         return params
 
     @functools.partial(jax.jit, static_argnums=(0,))
-    def get_next_state_and_action_seq(
-        self, xseq, params, teacher_forcing=False
+    def get_zero_carry(self, history_x, xseq, params):
+        del history_x, params
+        batch_xseq = jnp.expand_dims(xseq, axis=0)
+        batch_carry = self.model.get_init_carry(batch_xseq)
+        carry = jax.tree_map(lambda x: jnp.squeeze(x, axis=0), batch_carry)
+        return carry
+
+    @functools.partial(jax.jit, static_argnums=(0,))
+    def get_history_carry(self, history_x, xseq, params):
+        del xseq
+        history, x = history_x[:-1], history_x[-1]
+        dummy_history = jnp.zeros((0, *x.shape))
+        init_carry = self.get_zero_carry(dummy_history, history, params)
+        carry, _ = self.get_carry_next_state_and_action_seq(
+            init_carry, history, params, teacher_forcing=True
+        )
+        *model_carry, _ = carry
+        return tuple(model_carry) + (x,)
+
+    @functools.partial(jax.jit, static_argnums=(0,))
+    def get_carry_next_state_and_action_seq(
+        self, carry, xseq, params, teacher_forcing=False
     ):
         """
         xseq: (seqlen, xdim)
@@ -60,10 +80,12 @@ class ExpertModel:
         """
 
         batch_xseq = jnp.expand_dims(xseq, axis=0)
-        batch_next_xseq, batch_useq = self.model.apply(
-            params, batch_xseq, teacher_forcing
+        batch_carry = jax.tree_map(lambda x: jnp.expand_dims(x, axis=0), carry)
+        batch_carry, (batch_next_xseq, batch_useq) = self.model.apply(
+            params, batch_carry, batch_xseq, teacher_forcing
         )
         # next_xseq contains xseq value at t=0. dim (seqlen, xdim+1)
         next_xseq = jnp.vstack([xseq[0], batch_next_xseq[0]])
         useq = batch_useq[0]
-        return next_xseq, useq
+        carry = jax.tree_map(lambda x: jnp.squeeze(x, axis=0), batch_carry)
+        return carry, (next_xseq, useq)

@@ -1,30 +1,39 @@
 """runner code for norm based policy."""
 
+import collections
+
 import jax
 import jax.numpy as jnp
 import optax
 
 from gan_mpc import utils
 from gan_mpc.norm import cost_trainer, dynamics_trainer, l2_policy
+from gan_mpc.policy import eval
 
 
 def get_policy(config, x_size, u_size):
     cost, _ = utils.get_cost_model(config)
     dynamics, _ = utils.get_dynamics_model(config, x_size)
     expert = utils.get_expert_model(config, x_size, u_size)
-    policy = l2_policy.L2MPC(
+    train_policy = l2_policy.L2MPC(
         config=config,
         cost_model=cost,
         dynamics_model=dynamics,
         expert_model=expert,
     )
-    return policy, config.mpc
+    eval_policy = eval.EvalMPC(
+        config=config,
+        cost_model=cost,
+        dynamics_model=dynamics,
+        expert_model=expert,
+    )
+    return train_policy, eval_policy, config.mpc
 
 
 def get_params(policy, config, x_size, u_size):
     seed = config.seed
 
-    carry = policy.get_carry(jnp.zeros(x_size))
+    carry = policy.get_dynamics_carry(jnp.zeros((1, x_size)))
     carry_size = carry.shape[-1]
     xc_size = x_size + carry_size
 
@@ -56,20 +65,18 @@ def train(
     policy_args,
     cost_opt_args,
     dynamics_opt_args,
+    buffers,
     cost_dataset,
     dynamics_dataset,
     key,
 ):
-    policy, params = policy_args
+    train_policy, eval_policy, params = policy_args
     cost_opt, cost_opt_state = cost_opt_args
     dynamics_opt, dynamics_opt_state = dynamics_opt_args
     num_epochs = config.mpc.train.num_epochs
     print_after_n_epochs = config.mpc.train.print_after_n_epochs
     cost_config = config.mpc.train.cost
     dynamics_config = config.mpc.train.dynamics
-    replay_buffer = dynamics_trainer.ReplayBuffer(
-        horizon=config.mpc.horizon, maxlen=dynamics_config.replay_buffer_size
-    )
     cost_train_losses, cost_test_losses = [], []
     # default values
     dynamics_train_losses, dynamics_test_losses = [0.0], [0.0]
@@ -80,18 +87,18 @@ def train(
         (
             params,
             dynamics_opt_state,
-            replay_buffer,
+            buffers,
             epoch_dynamics_env_rewards,
             epoch_dynamics_train_losses,
             epoch_dynamics_test_losses,
             dynamics_exe_time,
         ) = dynamics_trainer.train(
             env=env,
-            train_args=(policy, dynamics_opt),
+            train_args=(train_policy, eval_policy, dynamics_opt),
             opt_state=dynamics_opt_state,
             params=params,
             dataset=dynamics_dataset,
-            replay_buffer=replay_buffer,
+            buffers=buffers,
             num_episodes=dynamics_config.num_episodes,
             max_interactions_per_episode=dynamics_config.max_interactions_per_episode,
             num_updates=dynamics_config.num_updates,
@@ -109,7 +116,7 @@ def train(
             epoch_cost_test_losses,
             cost_exe_time,
         ) = cost_trainer.train(
-            train_args=(policy, cost_opt),
+            train_args=(train_policy, cost_opt),
             opt_state=cost_opt_state,
             params=params,
             dataset=cost_dataset,
@@ -157,8 +164,10 @@ def run(config_path, dataset_path=None):
     x_size, u_size = utils.get_state_action_size(
         env_type=config.env.type, env_name=config.env.expert.name
     )
-    policy, policy_config = get_policy(config, x_size, u_size)
-    params = get_params(policy, config, x_size, u_size)
+    train_policy, eval_policy, policy_config = get_policy(
+        config, x_size, u_size
+    )
+    params = get_params(train_policy, config, x_size, u_size)
 
     cost_opt_args = get_optimizer(
         params=params,
@@ -180,12 +189,20 @@ def run(config_path, dataset_path=None):
         seed=config.seed,
     )
 
+    replay_buffer = dynamics_trainer.ReplayBuffer(
+        horizon=config.mpc.horizon,
+        maxlen=config.mpc.train.dynamics.replay_buffer_size,
+    )
+    buffer_x = collections.deque(maxlen=config.mpc.history + 1)
+    buffer_u = collections.deque(maxlen=config.mpc.history)
+
     params, dynamics_out_args, cost_out_args = train(
         config=config,
         env=env,
-        policy_args=(policy, params),
+        policy_args=(train_policy, eval_policy, params),
         cost_opt_args=cost_opt_args,
         dynamics_opt_args=dynamics_opt_args,
+        buffers=(replay_buffer, buffer_x, buffer_u),
         cost_dataset=cost_dataset,
         dynamics_dataset=dynamics_dataset,
         key=key,
@@ -201,8 +218,10 @@ def run(config_path, dataset_path=None):
 
     avg_reward = utils.avg_run_dm_policy(
         env=env,
-        policy_fn=policy.get_optimal_action,
+        policy_fn=eval_policy.get_optimal_action,
         params=params,
+        buffer_x=buffer_x,
+        buffer_u=buffer_u,
         max_interactions=config.mpc.evaluate.max_interactions,
         num_runs=config.mpc.evaluate.num_runs_for_avg,
     )
@@ -239,8 +258,10 @@ def run(config_path, dataset_path=None):
     if config.mpc.evaluate.save_video:
         utils.save_video(
             env=env,
-            policy_fn=policy.get_optimal_action,
+            policy_fn=eval_policy.get_optimal_action,
             params=params,
+            buffer_x=buffer_x,
+            buffer_u=buffer_u,
             dir_path=abs_dir_path,
             file_path="video.mp4",
         )

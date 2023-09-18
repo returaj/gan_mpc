@@ -1,5 +1,7 @@
 """runner code for expert prediction model."""
 
+import collections
+
 import jax
 import jax.numpy as jnp
 import optax
@@ -48,8 +50,13 @@ def get_train_dataset(config, dataset_path=None, train_split=0.8):
 
 
 def get_trainstate(model, params, tx):
+    def predict_fn(params, batch_xseq, teacher_forcing):
+        batch_carry = model.get_init_carry(batch_xseq)
+        _, out = model.apply(params, batch_carry, batch_xseq, teacher_forcing)
+        return out
+
     return train_state.TrainState.create(
-        apply_fn=model.apply, params=params, tx=tx
+        apply_fn=predict_fn, params=params, tx=tx
     )
 
 
@@ -105,15 +112,18 @@ def run(config_path=None):
     )
 
     @jax.jit
-    def policy_fn(x, params):
-        x = jnp.expand_dims(x, axis=(0, 1))
-        _, batch_useq = trainstate.apply_fn(params, x)
-        return batch_useq[0][0]
+    def policy_fn(params, histroy_x, history_u):
+        del history_u
+        histroy_x = jnp.expand_dims(histroy_x, axis=0)
+        _, batch_useq = trainstate.apply_fn(params, histroy_x, True)
+        return batch_useq[0][-1]
 
     avg_reward = utils.avg_run_dm_policy(
         env=env,
         policy_fn=policy_fn,
         params=trainstate.params,
+        buffer_x=collections.deque(maxlen=train_config.seqlen + 1),
+        buffer_u=collections.deque(maxlen=train_config.seqlen),
         num_runs=3,
         max_interactions=1000,
     )

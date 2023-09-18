@@ -92,8 +92,8 @@ class ScanMLP(nn.Module):
         )
 
         carry = (teacher_forcing,) + carry
-        _, out = mlp(carry, batch_xseq)
-        return out
+        (_, *carry), out = mlp(carry, batch_xseq)
+        return tuple(carry), out
 
 
 class ScanLSTM(ScanMLP):
@@ -135,8 +135,8 @@ class ScanLSTM(ScanMLP):
         )
 
         carry = (teacher_forcing,) + carry
-        _, out = lstm(carry, batch_xseq)
-        return out
+        (_, *carry), out = lstm(carry, batch_xseq)
+        return tuple(carry), out
 
 
 class StateAction(nn.Module, base.BaseNN):
@@ -148,14 +148,16 @@ class StateAction(nn.Module, base.BaseNN):
     def get_init_params(self, seed, batch_size, seqlen, x_size):
         key = jax.random.PRNGKey(seed)
         dummy_x = jnp.zeros((batch_size, seqlen, x_size))
-        return key, dummy_x
+        dummy_carry = self.get_init_carry(dummy_x)
+        return key, dummy_carry, dummy_x
 
     @nn.compact
-    def __call__(self, batch_xseq, teacher_forcing=True):
+    def __call__(self, batch_carry, batch_xseq, teacher_forcing=True):
         """
+        batch_carry: (batch_size, ..), ((batch_size, ..)
         batch_xseq: (batch_size, seq, xdim)
         teacher_forcing: bool
         """
 
-        carry = self.get_init_carry(batch_xseq)
-        return self.model(carry, batch_xseq, teacher_forcing)
+        # carry = self.get_init_carry(batch_xseq)
+        return self.model(batch_carry, batch_xseq, teacher_forcing)

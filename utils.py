@@ -13,10 +13,10 @@ from dm_control import suite
 from gan_mpc.config import load_config
 from gan_mpc.cost import cost_model
 from gan_mpc.cost import nn as cost_nn
-from gan_mpc.dynamics import dynamics_model
-from gan_mpc.dynamics import nn as dynamics_nn
 from gan_mpc.critic import critic_model
 from gan_mpc.critic import nn as critic_nn
+from gan_mpc.dynamics import dynamics_model
+from gan_mpc.dynamics import nn as dynamics_nn
 from gan_mpc.expert import expert_model
 
 _MAIN_DIR_PATH = os.path.dirname(__file__)
@@ -54,16 +54,17 @@ def get_imitator_env(env_type, env_name, seed):
     )
 
 
-def get_dm_state_action_size(name):
-    def get_size_from_spec(spec):
-        size = 0
-        for s in spec:
-            size += np.int32(np.prod(s.shape))
-        return size
+def get_size_from_dm_spec(spec):
+    size = 0
+    for s in spec:
+        size += np.int32(np.prod(s.shape))
+    return size
 
+
+def get_dm_state_action_size(name):
     env = get_dm_expert_env(name)
-    state_size = get_size_from_spec(env.observation_spec().values())
-    action_size = get_size_from_spec([env.action_spec()])
+    state_size = get_size_from_dm_spec(env.observation_spec().values())
+    action_size = get_size_from_dm_spec([env.action_spec()])
     return state_size, action_size
 
 
@@ -172,15 +173,19 @@ def get_policy_training_dataset(config, dataset_path=None, traj_len=1000):
 
     s_trajs = trajectories["states"]
     horizon = config.mpc.horizon
+    history = config.mpc.history
     X, Y = [], []
     for s_traj in s_trajs:
-        traj_len = min(s_traj.shape[0], traj_len)
+        actual_traj_len, xsize = s_traj.shape
+        traj_len = min(actual_traj_len, traj_len)
         num_elems = traj_len - horizon
-        X.append(s_traj[:num_elems])
-        tmp = []
-        for i in range(num_elems):
-            tmp.append(s_traj[i : i + horizon + 1])
-        Y.append(tmp)
+        s_traj = jnp.concatenate([jnp.zeros((history, xsize)), s_traj], axis=0)
+        tmpX, tmpY = [], []
+        for i in range(history, num_elems):
+            tmpX.append(s_traj[i - history : i + 1])
+            tmpY.append(s_traj[i : i + horizon + 1])
+        X.append(tmpX)
+        Y.append(tmpY)
 
     return np.concatenate(X, axis=0), np.concatenate(Y, axis=0)
 
@@ -259,10 +264,12 @@ def discounted_sum(mat, gamma):
     return curr_sum
 
 
-def save_video(env, policy_fn, params, dir_path, file_path):
+def save_video(
+    env, policy_fn, params, buffer_x, buffer_u, dir_path, file_path
+):
     abs_path = os.path.join(_MAIN_DIR_PATH, dir_path, file_path)
     _, _, frames, _ = run_dm_policy(
-        env, policy_fn, params, 1000, with_frames=True
+        env, policy_fn, params, buffer_x, buffer_u, 1000, with_frames=True
     )
     writer = imageio.get_writer(abs_path, fps=30)
     for f in frames:
@@ -270,15 +277,30 @@ def save_video(env, policy_fn, params, dir_path, file_path):
     writer.close()
 
 
-def run_dm_policy(env, policy_fn, params, max_interactions, with_frames=False):
-    states, actions = [], []
+def run_dm_policy(
+    env,
+    policy_fn,
+    params,
+    buffer_x,
+    buffer_u,
+    max_interactions,
+    with_frames=False,
+):
+    states, actions, rewards = [], [], []
     frames = []
-    rewards = []
+    state_size = get_size_from_dm_spec(env.observation_spec().values())
+    action_size = get_size_from_dm_spec([env.action_spec()])
+    buffer_x.clear()
+    buffer_u.clear()
+    buffer_x.append(jnp.zeros(state_size))
+    buffer_u.append(jnp.zeros(action_size))
     timestep = env.reset()
     t = 0
     while (not timestep.last()) and (t < max_interactions):
         x = flatten_tree_obs(timestep.observation)
-        u = policy_fn(x, params)
+        buffer_x.append(x)
+        u = policy_fn(params, jnp.array(buffer_x), jnp.array(buffer_u))
+        buffer_u.append(u)
         timestep = env.step(u)
         t += 1
         if with_frames and (len(frames) < env.physics.data.time * 30):
@@ -294,13 +316,17 @@ def run_dm_policy(env, policy_fn, params, max_interactions, with_frames=False):
     )
 
 
-def avg_run_dm_policy(env, policy_fn, params, num_runs, max_interactions):
+def avg_run_dm_policy(
+    env, policy_fn, params, buffer_x, buffer_u, num_runs, max_interactions
+):
     avg_reward = 0.0
     for run in range(1, num_runs + 1):
         _, _, _, rwd_list = run_dm_policy(
             env=env,
             policy_fn=policy_fn,
             params=params,
+            buffer_x=buffer_x,
+            buffer_u=buffer_u,
             max_interactions=max_interactions,
         )
         avg_reward += (sum(rwd_list) - avg_reward) / run

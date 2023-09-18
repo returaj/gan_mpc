@@ -5,25 +5,26 @@ seed: 0
 env:
   type: "dmcontrol"  # options: dmcontrol, brax
   expert:
-    name: "cartpole_balance"
+    name: "pendulum_swingup" # "cartpole_balance"
   imitator:
-    name: "cartpole_balance"
+    name: "pendulum_swingup" # "cartpole_balance"
 
 
 mpc:
   horizon: 5
+  history: 1   # need value > 1
   model:
     cost:
       weights:
-        action: 1.0
+        action: -1.0
         state: 3.0
-        terminal: 1.0
+        terminal: -3.0
       mlp:
         num_layers: 3
         num_hidden_units: 128
         fout: 10
     dynamics:
-      use: "lstm"
+      use: "mlp"
       mlp:
         num_layers: 3
         num_hidden_units: 128
@@ -38,38 +39,38 @@ mpc:
         num_layers: 1
         num_hidden_units: 64
     expert:
-      load_id: "2"
+      load_id: "3"
   train:
-    num_epochs: 5
+    num_epochs: 2
     print_after_n_epochs: 1
     cost:
-      num_trajectories: 2
-      trajectory_len: 500
+      num_trajectories: 10
+      trajectory_len: 800
       num_updates: 3
-      batch_size: 64
-      learning_rate: 1.0e-4
-      polyak_factor: 0.99
-      no_grads: ["mpc_weights", "dynamics_params", "critic_params", "expert_params"]
+      batch_size: 128
+      learning_rate: 1.0e-5
+      polyak_factor: 0.9
+      no_grads: ["dynamics_params", "critic_params", "expert_params"]
     dynamics:
-      init_trajectory_len: 500
+      init_trajectory_len: 800
       num_episodes: 1
-      max_interactions_per_episode: 200
+      max_interactions_per_episode: 500
       replay_buffer_size: 10_000
       num_updates: 1
-      batch_size: 64
-      learning_rate: 1.0e-4
+      batch_size: 128
+      learning_rate: 1.0e-5
       discount_factor: 0.9
       teacher_forcing_factor: 0.7
       no_grads: ["mpc_weights", "cost_params", "critic_params", "expert_params"]
     critic:
       num_updates: 2
-      batch_size: 64
-      learning_rate: 1.0e-4
+      batch_size: 128
+      learning_rate: 1.0e-5
       no_grads: ["mpc_weights", "cost_params", "dynamics_params", "expert_params"]
   evaluate:
     max_interactions: 1000
     num_runs_for_avg: 1
-    save_video: False
+    save_video: True
 
 
 expert_prediction:
