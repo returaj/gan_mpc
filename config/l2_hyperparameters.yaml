@@ -1,13 +1,36 @@
-# hyperparameters 
+# hyperparameters
 
 seed: 0
 
 env:
   type: "dmcontrol"  # options: dmcontrol, brax
   expert:
-    name: "pendulum_swingup" #"cartpole_balance"
+    name: "pendulum_swingup" # "cartpole_balance"
   imitator:
-    name: "pendulum_swingup" #"cartpole_balance"
+    # name: "cartpole_balance"
+    # physics: 
+    #   - key: "body_mass_cart"
+    #     value: 3.0
+    #   - key: "body_mass_pole_1"
+    #     value: 1.0
+    #   - key: "geom_size_cart"
+    #     value: 1.0
+    #   - key: "geom_size_pole_1"
+    #     value: 1.0
+
+    name: "pendulum_swingup"
+    physics: 
+      - key: "body_mass_pole"
+        value: 2.0
+    
+    # name: "cheetah_run"
+    # physics: 
+    #   - key: "body_mass_torso"
+    #     value: 2.0
+    #   - key: "jnt_stiffness_bfoot"
+    #     value: 1.0
+    #   - key: "jnt_stiffness_ffoot"
+    #     value: 1.0
 
 
 mpc:
@@ -33,9 +56,9 @@ mpc:
         num_layers: 3
         num_hidden_units: 128
     expert:
-      load_id: "3"
+      load_id: "0"
   train:
-    num_epochs: 2
+    num_epochs: 3
     print_after_n_epochs: 1
     cost:
       num_trajectories: 10
