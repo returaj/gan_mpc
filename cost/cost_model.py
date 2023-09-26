@@ -16,8 +16,9 @@ class MujocoBasedModel(base.BaseCostModel):
         return self.model.init(*model_args)
 
     def _get_staging_cost(self, xc, u, weights, goal):
-        u_cost = jnp.linalg.norm(u)
-        alpha = 0.2
+        alpha = 1e-2
+        # u_cost = jnp.linalg.norm(u)
+        u_cost = jnp.sqrt(jnp.dot(u, u) + alpha**2) - alpha
         x_size = goal.shape[0]
         x_diff = xc[:x_size] - goal
         x_cost = jnp.sqrt(jnp.dot(x_diff, x_diff) + alpha**2) - alpha

@@ -5,12 +5,12 @@ seed: 0
 env:
   type: "dmcontrol"  # options: dmcontrol, brax
   expert:
-    name: "pendulum_swingup" # "cartpole_balance"
+    name: "pendulum_swingup"  # "cartpole_balance"
   imitator:
     # name: "cartpole_balance"
     # physics: 
     #   - key: "body_mass_cart"
-    #     value: 3.0
+    #     value: 1.0
     #   - key: "body_mass_pole_1"
     #     value: 1.0
     #   - key: "geom_size_cart"
@@ -31,7 +31,6 @@ env:
     #     value: 1.0
     #   - key: "jnt_stiffness_ffoot"
     #     value: 1.0
-
 
 mpc:
   horizon: 5
@@ -56,20 +55,20 @@ mpc:
         num_layers: 3
         num_hidden_units: 128
     expert:
-      load_id: "0"
+      load_id: "1"
   train:
-    num_epochs: 3
+    num_epochs: 2
     print_after_n_epochs: 1
     cost:
-      num_trajectories: 10
-      trajectory_len: 800
+      num_trajectories: 5
+      trajectory_len: 500
       num_updates: 3
       batch_size: 128
       learning_rate: 1.0e-5
       polyak_factor: 0.9
       no_grads: ["dynamics_params", "expert_params"]
     dynamics:
-      init_trajectory_len: 800
+      init_trajectory_len: 500
       num_episodes: 1
       max_interactions_per_episode: 500
       replay_buffer_size: 10_000
