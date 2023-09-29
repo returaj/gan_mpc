@@ -38,7 +38,7 @@ mpc:
   model:
     cost:
       weights:
-        action: -1.0
+        action: -2.0
         state: 3.0
         terminal: -3.0
       mlp:
@@ -55,9 +55,9 @@ mpc:
         num_layers: 3
         num_hidden_units: 128
     expert:
-      load_id: "1"
+      load_id: "0"
   train:
-    num_epochs: 2
+    num_epochs: 5
     print_after_n_epochs: 1
     cost:
       num_trajectories: 5

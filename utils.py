@@ -47,7 +47,7 @@ def get_dm_imitator_env(seed, name, env_physics):
     geom_size_pattern = re.compile("^geom_size_(.*)$")
     jnt_stiffness_pattern = re.compile("^jnt_stiffness_(.*)$")
     for kv in env_physics:
-        key, value = kv["key"], kv["value"]
+        key, value = kv["key"], int(kv["value"])
         mass_key = body_mass_pattern.search(key)
         if mass_key:
             env.physics.named.model.body_mass[mass_key.group(1)] *= value
@@ -126,7 +126,7 @@ def get_expert_trajectories(config, path=None, num_trajectories=50):
     # TODO(returaj) Please remove this magic number of 200,
     # this is done to ensure expert trajectories are proper.
     idx = np.argsort(-trajs_reward)
-    idx = list(filter(lambda x: trajs_reward[x] > 700, idx))[:num_trajectories]
+    idx = list(filter(lambda x: trajs_reward[x] > 500, idx))[:num_trajectories]
     for k, v in data.items():
         sample_data[k] = np.array(v)[idx]
     return sample_data
