@@ -36,6 +36,8 @@ class StandardNormalizer(BaseNormalizer):
         axis = tuple(i for i in range(len(dataset.shape) - 1))
         self.mean = np.mean(dataset, axis=axis)
         self.std = np.std(dataset, axis=axis)
+        print(f"mean: {self.mean}")
+        print(f"std: {self.std}")
 
     def normalize(self, dataset):
         dataset = np.array(dataset)
