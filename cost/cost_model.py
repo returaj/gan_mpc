@@ -1,5 +1,7 @@
 """Cost Model for GAN-MPC."""
 
+import functools
+
 import jax
 import jax.numpy as jnp
 
@@ -15,6 +17,7 @@ class MujocoBasedModel(base.BaseCostModel):
         model_args = self.model.get_init_params(*args)
         return self.model.init(*model_args)
 
+    @functools.partial(jax.jit, static_argnums=0)
     def _get_staging_cost(self, xc, u, weights, goal):
         alpha = 1e-2
         # u_cost = jnp.linalg.norm(u)
@@ -27,6 +30,7 @@ class MujocoBasedModel(base.BaseCostModel):
     def _get_terminal_cost(self, xc, weight, params):
         return weight * self.model.get_cost(params, xc)
 
+    @functools.partial(jax.jit, static_argnums=0)
     def get_cost(self, xc, u, t, params, weights, goal_X):
         horizon = self.config.mpc.horizon
         goal = goal_X[t]

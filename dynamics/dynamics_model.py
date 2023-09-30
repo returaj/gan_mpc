@@ -1,5 +1,7 @@
 """Dynamics model for GAN-MPC."""
 
+import functools
+
 import jax
 import jax.numpy as jnp
 
@@ -19,6 +21,7 @@ class DynamicsModel(base.BaseDynamicsModel):
         xsize = history_x.shape[1]
         return self.model.get_carry(jnp.zeros(xsize))
 
+    @functools.partial(jax.jit, static_argnums=0)
     def get_history_carry(self, history_x, history_u, params):
         """
         history_x: (history, xsize)
@@ -39,6 +42,7 @@ class DynamicsModel(base.BaseDynamicsModel):
         init_carry = self.model.get_carry(jnp.zeros(xsize))
         return jax.lax.fori_loop(0, seqlen, body, init_carry)
 
+    @functools.partial(jax.jit, static_argnums=0)
     def predict(self, xc, u, t, params):
         del t
         return self.model.apply(params, xc, u)
