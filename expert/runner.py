@@ -1,52 +1,12 @@
 """runner code for expert prediction model."""
 
-import collections
-
 import jax
 import jax.numpy as jnp
 import optax
 from flax.training import train_state
 
-from gan_mpc import utils
+from gan_mpc import data_buffers, data_loader, data_normalizer, utils
 from gan_mpc.expert import expert_model, trainer
-
-
-def get_train_dataset(config, dataset_path=None, train_split=0.8):
-    trajectories = utils.get_expert_trajectories(config, path=dataset_path)
-
-    s_trajs, a_trajs = trajectories["states"], trajectories["actions"]
-    seqlen = config.expert_prediction.train.seqlen
-    states, actions, next_states = [], [], []
-    for s_traj, a_traj in zip(s_trajs, a_trajs):
-        traj_len, _ = s_traj.shape
-        num_elems = traj_len - seqlen
-        seq_states, seq_actions, seq_next_states = [], [], []
-        for i in range(num_elems):
-            seq_states.append(s_traj[i : i + seqlen])
-            seq_actions.append(a_traj[i : i + seqlen])
-            seq_next_states.append(s_traj[(i + 1) : (i + 1 + seqlen)])
-        states.append(jnp.array(seq_states))
-        actions.append(jnp.array(seq_actions))
-        next_states.append(jnp.array(seq_next_states))
-    states = jnp.concatenate(states, axis=0)
-    actions = jnp.concatenate(actions, axis=0)
-    next_states = jnp.concatenate(next_states, axis=0)
-
-    data_size = states.shape[0]
-    split_pos = int(train_split * data_size)
-    key = jax.random.PRNGKey(config.seed)
-    perm = jax.random.permutation(key, data_size)
-    train_dataset = (
-        states[perm[:split_pos]],
-        actions[perm[:split_pos]],
-        next_states[perm[:split_pos]],
-    )
-    test_dataset = (
-        states[perm[split_pos:]],
-        actions[perm[split_pos:]],
-        next_states[perm[split_pos:]],
-    )
-    return train_dataset, test_dataset
 
 
 def get_trainstate(model, params, tx):
@@ -83,6 +43,8 @@ def get_optimizer(config):
 
 def run(config_path=None):
     config = utils.get_config(config_path)
+    key = jax.random.PRNGKey(config.seed)
+
     env_type, env_name = config.env.type, config.env.expert.name
     state_size, action_size = utils.get_state_action_size(env_type, env_name)
 
@@ -91,7 +53,15 @@ def run(config_path=None):
     tx = get_optimizer(config)
     trainstate = get_trainstate(model, params, tx)
 
-    dataset = get_train_dataset(config)
+    normalizer = data_normalizer.JointNormalizer(
+        state_normalizer=data_normalizer.IdentityNormalizer(),
+        action_normalizer=data_normalizer.IdentityNormalizer(),
+    )
+    dataloader = data_loader.DataLoader(
+        config=config, normalizer=normalizer
+    ).init()
+    key, subkey = jax.random.split(key)
+    dataset = dataloader.get_expert_dataset(subkey)
 
     train_config = config.expert_prediction.train
     trainstate, train_loss, test_loss = trainer.train(
@@ -99,7 +69,7 @@ def run(config_path=None):
         dataset=dataset,
         num_epochs=train_config.num_epochs,
         batch_size=train_config.batch_size,
-        key=jax.random.PRNGKey(config.seed),
+        key=key,
         discount_factor=train_config.discount_factor,
         teacher_forcing_factor=train_config.teacher_forcing_factor,
         print_step=train_config.print_step,
@@ -114,12 +84,14 @@ def run(config_path=None):
         _, batch_useq = trainstate.apply_fn(params, histroy_x, True)
         return batch_useq[0][-1]
 
+    buffer = data_buffers.Buffer(
+        maxlen=train_config.seqlen, normalizer=dataloader.normalizer
+    )
     avg_reward = utils.avg_run_dm_policy(
         env=env,
         policy_fn=policy_fn,
         params=trainstate.params,
-        buffer_x=collections.deque(maxlen=train_config.seqlen + 1),
-        buffer_u=collections.deque(maxlen=train_config.seqlen),
+        buffer=buffer,
         num_runs=3,
         max_interactions=1000,
     )

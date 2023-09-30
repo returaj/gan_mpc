@@ -113,25 +113,6 @@ def get_config(config_path):
     return load_config.Config.from_yaml(config_path)
 
 
-def get_expert_trajectories(config, path=None, num_trajectories=50):
-    env_type, env_name = config.env.type, config.env.expert.name
-    path = path or os.path.join(
-        _MAIN_DIR_PATH,
-        f"expert_trajectories/{env_type}/{env_name}/trajectories.json",
-    )
-    with open(path, "r") as fp:
-        data = json.load(fp)
-    sample_data = {}
-    trajs_reward = np.sum(data["rewards"], axis=1)
-    # TODO(returaj) Please remove this magic number of 200,
-    # this is done to ensure expert trajectories are proper.
-    idx = np.argsort(-trajs_reward)
-    idx = list(filter(lambda x: trajs_reward[x] > 500, idx))[:num_trajectories]
-    for k, v in data.items():
-        sample_data[k] = np.array(v)[idx]
-    return sample_data
-
-
 def check_or_create_dir(path):
     if not os.path.exists(path=path):
         os.makedirs(path, exist_ok=True)
@@ -183,32 +164,6 @@ def get_masked_labels(all_vars, masked_vars, tx_key, zero_key):
         else:
             labels[v] = tx_key
     return labels
-
-
-def get_policy_training_dataset(config, dataset_path=None, traj_len=1000):
-    trajectories = get_expert_trajectories(
-        config=config,
-        path=dataset_path,
-        num_trajectories=config.mpc.train.cost.num_trajectories,
-    )
-
-    s_trajs = trajectories["states"]
-    horizon = config.mpc.horizon
-    history = config.mpc.history
-    X, Y = [], []
-    for s_traj in s_trajs:
-        actual_traj_len, xsize = s_traj.shape
-        traj_len = min(actual_traj_len, traj_len)
-        num_elems = traj_len - horizon
-        s_traj = jnp.concatenate([jnp.zeros((history, xsize)), s_traj], axis=0)
-        tmpX, tmpY = [], []
-        for i in range(history, num_elems):
-            tmpX.append(s_traj[i - history : i + 1])
-            tmpY.append(s_traj[i : i + horizon + 1])
-        X.append(tmpX)
-        Y.append(tmpY)
-
-    return np.concatenate(X, axis=0), np.concatenate(Y, axis=0)
 
 
 def get_cost_model(config):
@@ -285,12 +240,10 @@ def discounted_sum(mat, gamma):
     return curr_sum
 
 
-def save_video(
-    env, policy_fn, params, buffer_x, buffer_u, dir_path, file_path
-):
+def save_video(env, policy_fn, params, buffer, dir_path, file_path):
     abs_path = os.path.join(_MAIN_DIR_PATH, dir_path, file_path)
     _, _, frames, _ = run_dm_policy(
-        env, policy_fn, params, buffer_x, buffer_u, 1000, with_frames=True
+        env, policy_fn, params, buffer, 1000, with_frames=True
     )
     writer = imageio.get_writer(abs_path, fps=30)
     for f in frames:
@@ -302,8 +255,7 @@ def run_dm_policy(
     env,
     policy_fn,
     params,
-    buffer_x,
-    buffer_u,
+    buffer,
     max_interactions,
     with_frames=False,
 ):
@@ -311,17 +263,18 @@ def run_dm_policy(
     frames = []
     state_size = get_size_from_dm_spec(env.observation_spec().values())
     action_size = get_size_from_dm_spec([env.action_spec()])
-    buffer_x.clear()
-    buffer_u.clear()
-    buffer_x.append(jnp.zeros(state_size))
-    buffer_u.append(jnp.zeros(action_size))
+    buffer.clear()
+    buffer.append_state(jnp.zeros(state_size))
+    buffer.append_action(jnp.zeros(action_size))
     timestep = env.reset()
     t = 0
     while (not timestep.last()) and (t < max_interactions):
         x = flatten_tree_obs(timestep.observation)
-        buffer_x.append(x)
-        u = policy_fn(params, jnp.array(buffer_x), jnp.array(buffer_u))
-        buffer_u.append(u)
+        buffer.append_state(x)
+        u = policy_fn(
+            params, buffer.get_state_data(), buffer.get_action_data()
+        )
+        buffer.append_action(u)
         timestep = env.step(u)
         t += 1
         if with_frames and (len(frames) < env.physics.data.time * 30):
@@ -330,15 +283,15 @@ def run_dm_policy(
         actions.append(u)
         rewards.append(timestep.reward)
     return (
-        jnp.array(states),
-        jnp.array(actions),
+        np.array(states),
+        np.array(actions),
         frames,
         rewards,
     )
 
 
 def avg_run_dm_policy(
-    env, policy_fn, params, buffer_x, buffer_u, num_runs, max_interactions
+    env, policy_fn, params, buffer, num_runs, max_interactions
 ):
     avg_reward = 0.0
     for run in range(1, num_runs + 1):
@@ -346,8 +299,7 @@ def avg_run_dm_policy(
             env=env,
             policy_fn=policy_fn,
             params=params,
-            buffer_x=buffer_x,
-            buffer_u=buffer_u,
+            buffer=buffer,
             max_interactions=max_interactions,
         )
         avg_reward += (sum(rwd_list) - avg_reward) / run
