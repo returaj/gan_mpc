@@ -33,6 +33,9 @@ env:
     #     value: 1.0
 
 mpc:
+  normalizer:
+    state: "standard_norm"  # option "standard_norm"
+    action: "identity" 
   horizon: 5
   history: 1  # need value > 1
   model:
@@ -55,12 +58,12 @@ mpc:
         num_layers: 3
         num_hidden_units: 128
     expert:
-      load_id: "0"
+      load_id: "1"
   train:
     num_epochs: 2
     print_after_n_epochs: 1
-    num_trajectories: 10
-    trajectory_len: 800
+    num_trajectories: 5
+    trajectory_len: 300
     cost:
       num_updates: 3
       batch_size: 128
@@ -69,7 +72,7 @@ mpc:
       no_grads: ["dynamics_params", "expert_params"]
     dynamics:
       num_episodes: 1
-      max_interactions_per_episode: 500
+      max_interactions_per_episode: 300
       replay_buffer_size: 10_000
       num_updates: 1
       batch_size: 128

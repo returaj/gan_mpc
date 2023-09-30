@@ -58,6 +58,24 @@ def get_optimizer(params, masked_vars, lr):
     return opt, opt_state
 
 
+def get_normalizer(norm_config):
+    if norm_config.state == "standard_norm":
+        state_normalizer = data_normalizer.StandardNormalizer()
+    else:
+        state_normalizer = data_normalizer.IdentityNormalizer()
+
+    if norm_config.action == "identity":
+        action_normalizer = data_normalizer.IdentityNormalizer()
+    else:
+        raise Exception(
+            f"Please set appropriate action normalizer. Given: {norm_config.action}"
+        )
+
+    return data_normalizer.JointNormalizer(
+        state_normalizer=state_normalizer, action_normalizer=action_normalizer
+    )
+
+
 def train(
     config,
     env,
@@ -179,10 +197,7 @@ def run(config_path, dataset_path=None):
         lr=config.mpc.train.dynamics.learning_rate,
     )
 
-    normalizer = data_normalizer.JointNormalizer(
-        state_normalizer=data_normalizer.StandardNormalizer(),
-        action_normalizer=data_normalizer.IdentityNormalizer(),
-    )
+    normalizer = get_normalizer(config.mpc.normalizer)
     dataloader = data_loader.DataLoader(
         config=config, normalizer=normalizer
     ).init()
@@ -232,6 +247,7 @@ def run(config_path, dataset_path=None):
     )
 
     save_config = {
+        "seed": config.seed,
         "env": config.env.to_dict(),
         "loss": {
             "dynamics": {
