@@ -64,7 +64,8 @@ def bilevel_optimization(
     A = cost_hessian_wrt_control(
         wrapped_cost, wrapped_dynamics, x0, U
     ).reshape((T * m, T * m))
-    H = jax.scipy.linalg.solve(A, B).reshape((T * m,))
+    A = trajax_opt.project_psd_cone(A, delta=1e-4)
+    H = jax.scipy.linalg.solve(A, B).reshape((T, m))
 
     high_level_grad = cost_vjp(
         cost, wrapped_dynamics, H, x0, U, params, cost_args
@@ -91,15 +92,28 @@ def cost_hessian_wrt_control(cost, dynamics, x0, U):
 
 
 def cost_vjp(cost, dynamics, V, x0, U, params, cost_args):
-    v_size = V.shape[0]
+    def grad_vector(params):
+        def wrapped_cost(x, u, t):
+            return cost(x, u, t, params, *cost_args)
 
-    def outter(params):
-        def inner(U):
-            def wrapped_cost(x, u, t):
-                return cost(x, u, t, params, *cost_args)
+        return -jnp.vdot(
+            trajax_opt.grad_wrt_controls(
+                wrapped_cost, dynamics, U, x0, (), ()), V)
 
-            return objective(wrapped_cost, dynamics, U, x0)
+    return jax.grad(grad_vector)(params)
 
-        return V @ jax.grad(inner)(U).reshape((v_size,))
 
-    return jax.grad(outter)(params)
+# depricated
+# def cost_vjp(cost, dynamics, V, x0, U, params, cost_args):
+#     v_size = V.shape[0]
+
+#     def outter(params):
+#         def inner(U):
+#             def wrapped_cost(x, u, t):
+#                 return cost(x, u, t, params, *cost_args)
+
+#             return objective(wrapped_cost, dynamics, U, x0)
+
+#         return V @ jax.grad(inner)(U).reshape((v_size,))
+
+#     return jax.grad(outter)(params)
