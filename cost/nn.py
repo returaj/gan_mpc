@@ -22,7 +22,8 @@ class MLP(nn.Module, base.BaseCostNN):
 
     @nn.compact
     def __call__(self, xc):
-        x = xc
+        x = xc    # Can you layer norm
+        # x = nn.LayerNorm(dtype=jnp.float32)(x)
         for _ in range(self.num_layers - 1):
             x = nn.relu(nn.Dense(self.num_hidden_units)(x))
         x = nn.Dense(self.fout)(x)
