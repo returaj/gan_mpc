@@ -19,12 +19,14 @@ class MujocoBasedModel(base.BaseCostModel):
 
     @functools.partial(jax.jit, static_argnums=0)
     def _get_staging_cost(self, xc, u, weights, goal):
-        alpha = 1e-2
+        alpha = 2.0
         # u_cost = jnp.linalg.norm(u)
-        u_cost = jnp.sqrt(jnp.dot(u, u) + alpha**2) - alpha
+        # u_cost = jnp.sqrt(jnp.dot(u, u) + alpha**2) - alpha
+        u_cost = jnp.sum(jnp.sqrt(u**2 + alpha**2) - alpha)
         x_size = goal.shape[0]
         x_diff = xc[:x_size] - goal
-        x_cost = jnp.sqrt(jnp.dot(x_diff, x_diff) + alpha**2) - alpha
+        # x_cost = jnp.sqrt(jnp.dot(x_diff, x_diff) + alpha**2) - alpha
+        x_cost = jnp.sum(jnp.sqrt(x_diff**2 + alpha**2) - alpha)
         return jnp.array(weights) @ jnp.array([u_cost, x_cost])
 
     def _get_terminal_cost(self, xc, weight, params):
