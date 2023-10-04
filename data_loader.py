@@ -4,6 +4,7 @@ import json
 import os
 
 import jax
+import jax.numpy as jnp
 import numpy as np
 
 from gan_mpc import utils
@@ -63,6 +64,7 @@ class DataLoader:
         perm = jax.random.permutation(key, datasize)
         train_dataset, test_dataset = [], []
         for d in dataset:
+            d = jnp.array(d)
             train_dataset.append(d[perm[:split_pos]])
             test_dataset.append(d[perm[split_pos:]])
         return tuple(train_dataset), tuple(test_dataset)

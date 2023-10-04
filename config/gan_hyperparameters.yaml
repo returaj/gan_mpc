@@ -41,7 +41,7 @@ mpc:
   model:
     cost:
       weights:
-        action: -2.0
+        action: -20.0
         state: 3.0
         terminal: -3.0
       mlp:
@@ -61,8 +61,8 @@ mpc:
       use: "lstm"
       lstm:
         lstm_features: 64
-        num_layers: 1
-        num_hidden_units: 64
+        num_layers: 2
+        num_hidden_units: 128
     expert:
       load_id: "1"
   train:
@@ -71,30 +71,30 @@ mpc:
     num_trajectories: 5
     trajectory_len: 300
     cost:
-      num_updates: 3
-      batch_size: 128
+      num_updates: 2
+      batch_size: 64
       learning_rate: 1.0e-5
-      polyak_factor: 0.9
+      polyak_factor: 0.0
       no_grads: ["dynamics_params", "critic_params", "expert_params"]
     dynamics:
       num_episodes: 1
-      max_interactions_per_episode: 300
-      replay_buffer_size: 10_000
+      max_interactions_per_episode: 200
+      replay_buffer_size: 300
       num_updates: 1
-      batch_size: 128
-      learning_rate: 1.0e-5
-      discount_factor: 0.9
+      batch_size: 64
+      learning_rate: 1.0e-4
+      discount_factor: 0.0
       teacher_forcing_factor: 0.7
       no_grads: ["mpc_weights", "cost_params", "critic_params", "expert_params"]
     critic:
       num_updates: 2
-      batch_size: 128
-      learning_rate: 1.0e-5
+      batch_size: 64
+      learning_rate: 1.0e-4
       no_grads: ["mpc_weights", "cost_params", "dynamics_params", "expert_params"]
   evaluate:
     max_interactions: 1000
-    num_runs_for_avg: 0
-    save_video: False
+    num_runs_for_avg: 1
+    save_video: True
 
 
 expert_prediction:

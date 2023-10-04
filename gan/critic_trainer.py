@@ -23,7 +23,7 @@ def get_dataset(policy, params, true_dataset, key):
             return y
 
         pred_Y = jax.vmap(predict, in_axes=(None, 0))(params, X)
-        pred_label = -1 * jnp.ones(datasize, dtype=jnp.float32)
+        pred_label = jnp.zeros(datasize, dtype=jnp.float32)
 
         return (
             jnp.concatenate([true_Y, pred_Y], axis=0),
