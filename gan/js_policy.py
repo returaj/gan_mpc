@@ -4,8 +4,14 @@ import functools
 
 import jax
 import jax.numpy as jnp
+import optax
 
 from gan_mpc.policy import base, eval
+
+
+def get_logit_bernoulli_entropy(logit):
+    ent = (1 - jax.nn.sigmoid(logit)) * logit - jax.nn.log_sigmoid(logit)
+    return ent
 
 
 class JS_MPC(base.BaseMPC):
@@ -17,6 +23,7 @@ class JS_MPC(base.BaseMPC):
         expert_model,
         critic_model,
         loss_vmap=(0,),
+        entropy_coef=1e-3,
         trajax_ilqr_kwargs=eval.TRAJAX_iLQR_KWARGS,
     ):
         super().__init__(
@@ -27,6 +34,7 @@ class JS_MPC(base.BaseMPC):
             loss_vmap,
             trajax_ilqr_kwargs,
         )
+        self.entropy_coef = entropy_coef
         self.critic_model = critic_model
 
     def init(
@@ -40,10 +48,10 @@ class JS_MPC(base.BaseMPC):
 
     def critic_loss(self, xseq, label, params):
         critic_params = params["critic_params"]
-        score = self.critic_model.predict(xseq, critic_params)
-        p = jax.nn.sigmoid(score)
-        p = jnp.where(label > 0, p, 1 - p)
-        return -jnp.log(p)
+        logit = self.critic_model.predict(xseq, critic_params)
+        ce_loss = optax.sigmoid_binary_cross_entropy(logit, label)
+        ent_loss = -get_logit_bernoulli_entropy(logit)
+        return ce_loss + self.entropy_coef * ent_loss
 
     @functools.partial(jax.jit, static_argnums=0)
     def critic_loss_and_grad(self, batch_xseq, batch_label, params):
