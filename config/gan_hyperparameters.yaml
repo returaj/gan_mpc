@@ -1,18 +1,40 @@
-# hyperparameters 
+# hyperparameters
 
 seed: 0
 
 env:
   type: "dmcontrol"  # options: dmcontrol, brax
   expert:
-    name: "pendulum_swingup" # "cartpole_balance"
+    name: "pendulum_swingup"  #  "cartpole_balance" 
   imitator:
-    name: "pendulum_swingup" # "cartpole_balance"
+    # name: "cartpole_balance"
+    # physics: 
+    #   - key: "body_mass_cart"
+    #     value: 1.0
+    #   - key: "body_mass_pole_1"
+    #     value: 1.0
+    #   - key: "geom_size_cart"
+    #     value: 1.0
+    #   - key: "geom_size_pole_1"
+    #     value: 1.0
 
+    name: "pendulum_swingup"
+    physics: 
+      - key: "body_mass_pole"
+        value: 2.0
+    
+    # name: "cheetah_run"
+    # physics: 
+    #   - key: "body_mass_torso"
+    #     value: 3.0
+    #   - key: "jnt_stiffness_bfoot"
+    #     value: 1.0
+    #   - key: "jnt_stiffness_ffoot"
+    #     value: 1.0
 
 mpc:
   horizon: 5
-  history: 1   # need value > 1
+  history: 1   # need value >= 1
   model:
     cost:
       weights:
@@ -26,8 +48,8 @@ mpc:
     dynamics:
       use: "mlp"
       mlp:
-        num_layers: 3
-        num_hidden_units: 128
+        num_layers: 4
+        num_hidden_units: 200
       lstm:
         lstm_features: 64
         num_layers: 3
@@ -39,20 +61,20 @@ mpc:
         num_layers: 1
         num_hidden_units: 64
     expert:
-      load_id: "3"
+      load_id: "0"
   train:
     num_epochs: 2
     print_after_n_epochs: 1
     cost:
-      num_trajectories: 10
-      trajectory_len: 800
+      num_trajectories: 5
+      trajectory_len: 500
       num_updates: 3
       batch_size: 128
       learning_rate: 1.0e-5
       polyak_factor: 0.9
       no_grads: ["dynamics_params", "critic_params", "expert_params"]
     dynamics:
-      init_trajectory_len: 800
+      init_trajectory_len: 500
       num_episodes: 1
       max_interactions_per_episode: 500
       replay_buffer_size: 10_000
@@ -75,7 +97,7 @@ mpc:
 
 expert_prediction:
   model:
-    use: "mlp"
+    use: "lstm"
     mlp:
       num_layers: 3
       num_hidden_units: 128

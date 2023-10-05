@@ -105,11 +105,7 @@ def run(config_path=None):
         print_step=train_config.print_step,
     )
 
-    env = utils.get_imitator_env(
-        env_type=config.env.type,
-        env_name=config.env.imitator.name,
-        seed=config.seed,
-    )
+    env = utils.get_imitator_env(config=config)
 
     @jax.jit
     def policy_fn(params, histroy_x, history_u):
@@ -129,6 +125,7 @@ def run(config_path=None):
     )
 
     save_config = {
+        "env": config.env.to_dict(),
         "loss": {
             "train_loss": round(float(train_loss), 5),
             "test_loss": round(float(test_loss), 5),

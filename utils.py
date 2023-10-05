@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import time
 
 import imageio
@@ -39,16 +40,36 @@ def get_dm_expert_env(name):
     return suite.load(domain, task)
 
 
-def get_dm_imitator_env(name, seed):
+def get_dm_imitator_env(seed, name, env_physics):
     domain, task = name.split("_")
-    return suite.load(domain, task, task_kwargs={"random": seed})
+    env = suite.load(domain, task, task_kwargs={"random": seed})
+    body_mass_pattern = re.compile("^body_mass_(.*)$")
+    geom_size_pattern = re.compile("^geom_size_(.*)$")
+    jnt_stiffness_pattern = re.compile("^jnt_stiffness_(.*)$")
+    for kv in env_physics:
+        key, value = kv["key"], int(kv["value"])
+        mass_key = body_mass_pattern.search(key)
+        if mass_key:
+            env.physics.named.model.body_mass[mass_key.group(1)] *= value
+        geom_key = geom_size_pattern.search(key)
+        if geom_key:
+            env.physics.named.model.geom_size[geom_key.group(1)] *= value
+        stiffness_key = jnt_stiffness_pattern.search(key)
+        if stiffness_key:
+            env.physics.named.model.jnt_stiffness[
+                stiffness_key.group(1)
+            ] *= value
+    return env
 
 
-def get_imitator_env(env_type, env_name, seed):
+def get_imitator_env(config):
+    seed = config.seed
+    env_type, env_name = config.env.type, config.env.imitator.name
+    env_physics = config.env.imitator.physics
     if env_type == "brax":
         raise NotImplementedError
     elif env_type == "dmcontrol":
-        return get_dm_imitator_env(env_name, seed)
+        return get_dm_imitator_env(seed, env_name, env_physics)
     raise Exception(
         f"env_type can be either brax or dmcontrol, but given {env_type}"
     )
@@ -105,7 +126,7 @@ def get_expert_trajectories(config, path=None, num_trajectories=50):
     # TODO(returaj) Please remove this magic number of 200,
     # this is done to ensure expert trajectories are proper.
     idx = np.argsort(-trajs_reward)
-    idx = list(filter(lambda x: trajs_reward[x] > 700, idx))[:num_trajectories]
+    idx = list(filter(lambda x: trajs_reward[x] > 500, idx))[:num_trajectories]
     for k, v in data.items():
         sample_data[k] = np.array(v)[idx]
     return sample_data

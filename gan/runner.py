@@ -223,11 +223,7 @@ def run(config_path, dataset_path=None):
     cost_dataset = cost_trainer.get_dataset(config, dataset_path, key)
     dynamics_dataset = dynamics_trainer.get_dataset(config, dataset_path)
 
-    env = utils.get_imitator_env(
-        env_type=config.env.type,
-        env_name=config.env.imitator.name,
-        seed=config.seed,
-    )
+    env = utils.get_imitator_env(config=config)
 
     replay_buffer = dynamics_trainer.ReplayBuffer(
         horizon=config.mpc.horizon,
@@ -270,6 +266,7 @@ def run(config_path, dataset_path=None):
     )
 
     save_config = {
+        "env": config.env.to_dict(),
         "loss": {
             "dynamics": {
                 "train_loss": round(dynamics_train_losses[-1], 5),
