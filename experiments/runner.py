@@ -17,31 +17,21 @@ def update_env(config, env_name, keys, values):
     return config
 
 
-def update_mpc(
-    config, horizon, history, expert_model, num_epochs, num_eval, save_video
-):
+def update_mpc(config, args):
     mpc_config = config.mpc
-    mpc_config.horizon = horizon
-    mpc_config.history = history
-    mpc_config.model.expert.load_id = expert_model
-    mpc_config.train.num_epochs = num_epochs
-    mpc_config.evaluate.num_runs_for_avg = num_eval
-    mpc_config.evaluate.save_video = save_video
+    mpc_config.horizon = args.horizon
+    mpc_config.history = args.history
+    mpc_config.model.expert.load_id = args.expert_model
+    mpc_config.train.num_epochs = args.num_epochs
+    mpc_config.evaluate.num_runs_for_avg = args.num_eval
+    mpc_config.evaluate.save_video = args.save_video
     return config
 
 
 def main(args):
     config = load_config.Config.from_yaml(args.config)
     config = update_env(config, args.env_name, args.keys, args.values)
-    config = update_mpc(
-        config=config,
-        horizon=args.horizon,
-        history=args.history,
-        expert_model=args.expert_model,
-        num_epochs=args.num_epochs,
-        num_eval=args.num_eval,
-        save_video=args.save_video,
-    )
+    config = update_mpc(config=config, args=args)
 
     if args.algo == "l2":
         norm_runner.run(config=config)
