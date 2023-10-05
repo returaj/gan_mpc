@@ -209,8 +209,7 @@ def train(
     )
 
 
-def run(config_path, dataset_path=None):
-    config = utils.get_config(config_path)
+def run(config, dataset_path=None):
     key = jax.random.PRNGKey(config.seed)
 
     x_size, u_size = utils.get_state_action_size(
@@ -339,4 +338,5 @@ def run(config_path, dataset_path=None):
 
 if __name__ == "__main__":
     config_path = "config/gan_hyperparameters.yaml"
-    run(config_path=config_path)
+    config = utils.get_config(config_path)
+    run(config=config)
