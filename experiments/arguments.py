@@ -32,6 +32,6 @@ def get_arguments():
         "--num_eval", type=int, default=3, help="number of evaluations"
     )
     parser.add_argument(
-        "--save_video", type=bool, default=True, help="save one video"
+        "--save_video", action="store_true", help="save one video"
     )
     return parser
