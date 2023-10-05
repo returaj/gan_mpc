@@ -9,28 +9,6 @@ import optax
 from gan_mpc import utils
 
 
-def get_dataset(config, dataset_path, key, train_split=0.8):
-    X, Y = utils.get_policy_training_dataset(
-        config=config,
-        dataset_path=dataset_path,
-        traj_len=config.mpc.train.cost.trajectory_len,
-    )
-    X, Y = jnp.array(X), jnp.array(Y)
-    data_size = X.shape[0]
-    split_pos = int(data_size * train_split)
-    _, subkey = jax.random.split(key)
-    perm = jax.random.permutation(subkey, data_size)
-    train_dataset = (
-        X[perm[:split_pos]],
-        Y[perm[:split_pos]],
-    )
-    test_dataset = (
-        X[perm[split_pos:]],
-        Y[perm[split_pos:]],
-    )
-    return (train_dataset, test_dataset)
-
-
 @functools.partial(jax.jit, static_argnums=0)
 def calculate_loss(policy, params, dataset):
     batch_x, batch_y = dataset

@@ -1,12 +1,11 @@
 """runner code for norm based policy."""
 
-import collections
 
 import jax
 import jax.numpy as jnp
 import optax
 
-from gan_mpc import utils
+from gan_mpc import data_buffers, data_loader, data_normalizer, utils
 from gan_mpc.norm import cost_trainer, dynamics_trainer, l2_policy
 from gan_mpc.policy import eval
 
@@ -57,6 +56,24 @@ def get_optimizer(params, masked_vars, lr):
     )
     opt_state = opt.init(params)
     return opt, opt_state
+
+
+def get_normalizer(norm_config):
+    if norm_config.state == "standard_norm":
+        state_normalizer = data_normalizer.StandardNormalizer()
+    else:
+        state_normalizer = data_normalizer.IdentityNormalizer()
+
+    if norm_config.action == "identity":
+        action_normalizer = data_normalizer.IdentityNormalizer()
+    else:
+        raise Exception(
+            f"Please set appropriate action normalizer. Given: {norm_config.action}"
+        )
+
+    return data_normalizer.JointNormalizer(
+        state_normalizer=state_normalizer, action_normalizer=action_normalizer
+    )
 
 
 def train(
@@ -180,17 +197,25 @@ def run(config_path, dataset_path=None):
         lr=config.mpc.train.dynamics.learning_rate,
     )
 
-    cost_dataset = cost_trainer.get_dataset(config, dataset_path, key)
-    dynamics_dataset = dynamics_trainer.get_dataset(config, dataset_path)
+    normalizer = get_normalizer(config.mpc.normalizer)
+    dataloader = data_loader.DataLoader(
+        config=config, normalizer=normalizer
+    ).init()
+
+    key, subkey1, subkey2 = jax.random.split(key, 3)
+    cost_dataset = dataloader.get_cost_dataset(subkey1)
+    dynamics_dataset = dataloader.get_dynamics_dataset(subkey2)
 
     env = utils.get_imitator_env(config=config)
 
-    replay_buffer = dynamics_trainer.ReplayBuffer(
+    replay_buffer = data_buffers.ReplayBuffer(
         horizon=config.mpc.horizon,
-        maxlen=config.mpc.train.dynamics.replay_buffer_size,
+        q_maxlen=config.mpc.train.dynamics.replay_buffer_size,
+        normalizer=dataloader.normalizer,
     )
-    buffer_x = collections.deque(maxlen=config.mpc.history + 1)
-    buffer_u = collections.deque(maxlen=config.mpc.history)
+    buffer = data_buffers.Buffer(
+        maxlen=config.mpc.horizon, normalizer=dataloader.normalizer
+    )
 
     params, dynamics_out_args, cost_out_args = train(
         config=config,
@@ -198,7 +223,7 @@ def run(config_path, dataset_path=None):
         policy_args=(train_policy, eval_policy, params),
         cost_opt_args=cost_opt_args,
         dynamics_opt_args=dynamics_opt_args,
-        buffers=(replay_buffer, buffer_x, buffer_u),
+        buffers=(replay_buffer, buffer),
         cost_dataset=cost_dataset,
         dynamics_dataset=dynamics_dataset,
         key=key,
@@ -216,13 +241,13 @@ def run(config_path, dataset_path=None):
         env=env,
         policy_fn=eval_policy.get_optimal_action,
         params=params,
-        buffer_x=buffer_x,
-        buffer_u=buffer_u,
+        buffer=buffer,
         max_interactions=config.mpc.evaluate.max_interactions,
         num_runs=config.mpc.evaluate.num_runs_for_avg,
     )
 
     save_config = {
+        "seed": config.seed,
         "env": config.env.to_dict(),
         "loss": {
             "dynamics": {
@@ -257,8 +282,7 @@ def run(config_path, dataset_path=None):
             env=env,
             policy_fn=eval_policy.get_optimal_action,
             params=params,
-            buffer_x=buffer_x,
-            buffer_u=buffer_u,
+            buffer=buffer,
             dir_path=abs_dir_path,
             file_path="video.mp4",
         )

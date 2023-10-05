@@ -10,66 +10,6 @@ import optax
 from gan_mpc import utils
 
 
-def from_traj_to_seq(state_traj, action_traj, horizon, traj_len=1000):
-    traj_len = min(traj_len, len(state_traj))
-    num_elems = traj_len - horizon
-    seq_states, seq_actions, seq_next_states = [], [], []
-    for i in range(num_elems):
-        seq_states.append(state_traj[i : i + horizon])
-        seq_actions.append(action_traj[i : i + horizon])
-        seq_next_states.append(state_traj[(i + 1) : (i + 1 + horizon)])
-    return (
-        jnp.array(seq_states),
-        jnp.array(seq_actions),
-        jnp.array(seq_next_states),
-    )
-
-
-def get_dataset(config, dataset_path):
-    trajectories = utils.get_expert_trajectories(config, dataset_path)
-    s_trajs, a_trajs = trajectories["states"], trajectories["actions"]
-    horizon = config.mpc.horizon
-    X, U, Y = [], [], []
-    for s_traj, a_traj in zip(s_trajs, a_trajs):
-        seq_states, seq_actions, seq_next_states = from_traj_to_seq(
-            state_traj=s_traj,
-            action_traj=a_traj,
-            horizon=horizon,
-            traj_len=config.mpc.train.dynamics.init_trajectory_len,
-        )
-        X.append(seq_states)
-        U.append(seq_actions)
-        Y.append(seq_next_states)
-    return (
-        jnp.concatenate(X, axis=0),
-        jnp.concatenate(U, axis=0),
-        jnp.concatenate(Y, axis=0),
-    )
-
-
-class ReplayBuffer:
-    def __init__(self, horizon, maxlen):
-        self.horizon = horizon
-        self.states = collections.deque(maxlen=maxlen)
-        self.actions = collections.deque(maxlen=maxlen)
-        self.next_states = collections.deque(maxlen=maxlen)
-
-    def add(self, state_traj, action_traj):
-        seq_states, seq_actions, seq_next_states = from_traj_to_seq(
-            state_traj, action_traj, self.horizon
-        )
-        self.states.extend(seq_states)
-        self.actions.extend(seq_actions)
-        self.next_states.extend(seq_next_states)
-
-    def get_data(self):
-        return (
-            jnp.array(self.states),
-            jnp.array(self.actions),
-            jnp.array(self.next_states),
-        )
-
-
 @functools.partial(jax.jit, static_argnums=0)
 def predict_loss(
     policy,
@@ -197,7 +137,7 @@ def train(
     id,
 ):
     train_policy, eval_policy, opt = train_args
-    replay_buffer, buffer_x, buffer_u = buffers
+    replay_buffer, buffer = buffers
 
     if id == 1:
         key, subkey = jax.random.split(key)
@@ -223,14 +163,13 @@ def train(
             env=env,
             policy_fn=eval_policy.get_optimal_action,
             params=params,
-            buffer_x=buffer_x,
-            buffer_u=buffer_u,
+            buffer=buffer,
             max_interactions=max_interactions_per_episode,
         )
         replay_buffer.add(state_traj, action_traj)
         episode_rewards.append(rewards)
 
-        replay_dataset = replay_buffer.get_data()
+        replay_dataset = replay_buffer.get_dataset()
         params, opt_state, train_losses = train_params(
             train_args=(train_policy, opt),
             opt_state=opt_state,
@@ -248,7 +187,7 @@ def train(
     return (
         params,
         opt_state,
-        (replay_buffer, buffer_x, buffer_u),
+        (replay_buffer, buffer),
         episode_rewards,
         episode_train_losses,
         episode_test_losses,
