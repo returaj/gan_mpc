@@ -59,14 +59,23 @@ def get_params(policy, config, x_size, u_size):
     )
 
 
-def get_optimizer(params, masked_vars, lr):
+def get_optimizer(params, masked_vars, lr, total_steps):
     labels = utils.get_masked_labels(
         all_vars=params.keys(),
         masked_vars=masked_vars,
         tx_key="tx",
         zero_key="zero",
     )
-    tx = optax.chain(optax.clip_by_global_norm(max_norm=100.0), optax.adam(lr))
+    scheduler = optax.linear_schedule(
+        init_value=lr,
+        end_value=1e-8,
+        transition_steps=total_steps,
+        transition_begin=int(0.2 * total_steps),
+    )
+    tx = optax.chain(
+        optax.clip_by_global_norm(max_norm=100.0),
+        optax.adam(learning_rate=scheduler),
+    )
     opt = optax.multi_transform(
         {"tx": tx, "zero": optax.set_to_zero()}, labels
     )
@@ -232,20 +241,48 @@ def run(config_path, dataset_path=None):
     )
     params = get_params(train_policy, config, x_size, u_size)
 
+    train_config = config.mpc.train
+    common_total_steps = (
+        train_config.num_epochs
+        * train_config.num_trajectories
+        * train_config.trajectory_len
+    )
+    cost_total_steps = (
+        2
+        * (train_config.cost.num_updates * common_total_steps)
+        // train_config.cost.batch_size
+    )
     cost_opt_args = get_optimizer(
         params=params,
         masked_vars=config.mpc.train.cost.no_grads,
         lr=config.mpc.train.cost.learning_rate,
+        total_steps=cost_total_steps,
+    )
+    dynamics_total_steps = (
+        3
+        * (
+            train_config.dynamics.num_updates
+            * train_config.dynamics.num_episodes
+            * common_total_steps
+        )
+        // train_config.dynamics.batch_size
     )
     dynamics_opt_args = get_optimizer(
         params=params,
         masked_vars=config.mpc.train.dynamics.no_grads,
         lr=config.mpc.train.dynamics.learning_rate,
+        total_steps=dynamics_total_steps,
+    )
+    critic_total_steps = (
+        4
+        * (train_config.critic.num_updates * common_total_steps)
+        // train_config.critic.batch_size
     )
     critic_opt_args = get_optimizer(
         params=params,
         masked_vars=config.mpc.train.critic.no_grads,
         lr=config.mpc.train.critic.learning_rate,
+        total_steps=critic_total_steps,
     )
 
     normalizer = get_normalizer(config.mpc.normalizer)
