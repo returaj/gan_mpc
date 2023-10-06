@@ -37,13 +37,13 @@ mpc:
     state: "standard_norm"  # option "standard_norm" or "identity"
     action: "identity" 
   horizon: 5
-  history: 1   # need value >= 1
+  history: 5   # need value >= 1
   model:
     cost:
       weights:
         action: -20.0
         state: 3.0
-        terminal: -3.0
+        terminal: 1.0
       mlp:
         num_layers: 3
         num_hidden_units: 128
@@ -64,12 +64,12 @@ mpc:
         num_layers: 2
         num_hidden_units: 128
     expert:
-      load_id: "1"
+      load_id: "0"
   train:
-    num_epochs: 2
+    num_epochs: 20
     print_after_n_epochs: 1
     num_trajectories: 5
-    trajectory_len: 300
+    trajectory_len: 500
     cost:
       num_updates: 2
       batch_size: 64
@@ -79,7 +79,7 @@ mpc:
     dynamics:
       num_episodes: 1
       max_interactions_per_episode: 200
-      replay_buffer_size: 300
+      replay_buffer_size: 1000
       num_updates: 1
       batch_size: 64
       learning_rate: 1.0e-4
@@ -87,9 +87,11 @@ mpc:
       teacher_forcing_factor: 0.7
       no_grads: ["mpc_weights", "cost_params", "critic_params", "expert_params"]
     critic:
-      num_updates: 2
+      num_updates: 5
       batch_size: 64
       learning_rate: 1.0e-4
+      entropy_rate: 0.0
+      grad_penalty_rate: 10.0
       no_grads: ["mpc_weights", "cost_params", "dynamics_params", "expert_params"]
   evaluate:
     max_interactions: 1000

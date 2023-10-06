@@ -21,6 +21,8 @@ def get_policy(config, x_size, u_size):
         dynamics_model=dynamics,
         expert_model=expert,
         critic_model=critic,
+        entropy_rate=config.mpc.train.critic.entropy_rate,
+        grad_penalty_rate=config.mpc.train.critic.grad_penalty_rate,
     )
     eval_policy = eval.EvalMPC(
         config=config,
