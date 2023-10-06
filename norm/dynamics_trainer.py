@@ -146,13 +146,16 @@ def train(
             opt_state=opt_state,
             params=params,
             dataset=dataset,
-            num_updates=3,
+            num_updates=5,
             batch_size=batch_size,
             discount_factor=discount_factor,
             teacher_forcing_factor=1.0,
             key=subkey,
             id=0,
         )
+
+    if id < 5:
+        num_episodes = 3
 
     episode_rewards = []
     episode_train_losses = []
