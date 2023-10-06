@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import optax
 
 from gan_mpc import data_buffers, data_loader, data_normalizer, utils
-from gan_mpc.gan import critic_trainer, js_policy
+from gan_mpc.gan import critic_trainer, js_policy, wasserstein_policy
 from gan_mpc.norm import cost_trainer, dynamics_trainer
 from gan_mpc.policy import eval
 
@@ -15,7 +15,16 @@ def get_policy(config, x_size, u_size):
     dynamics, _ = utils.get_dynamics_model(config, x_size)
     expert = utils.get_expert_model(config, x_size, u_size)
     critic, _ = utils.get_critic_model(config)
-    train_policy = js_policy.JS_MPC(
+
+    algo = config.mpc.model.critic.algo
+    if algo == "js_gan":
+        mpc_policy = js_policy.JS_MPC
+    elif algo == "w_gan":
+        mpc_policy = wasserstein_policy.WMPC
+    else:
+        raise ValueError(f"Given {algo} algorithm is not defined.")
+
+    train_policy = mpc_policy(
         config=config,
         cost_model=cost,
         dynamics_model=dynamics,

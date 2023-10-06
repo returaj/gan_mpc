@@ -102,10 +102,10 @@ class JS_MPC(base.BaseMPC):
         return loss, grads
 
     @functools.partial(jax.jit, static_argnums=0)
-    def generator_loss(self, xcseq, useq, params, actual_xseq):
+    def generator_loss(self, xcseq, useq, params, true_xseq):
         del useq
         critic_params = params["critic_params"]
-        x_size = actual_xseq.shape[-1]
+        x_size = true_xseq.shape[-1]
         xseq, _ = jnp.split(xcseq, [x_size], axis=-1)
         score = self.critic_model.predict(xseq, critic_params)
         p = jax.nn.sigmoid(score)
