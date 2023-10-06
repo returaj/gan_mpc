@@ -59,6 +59,7 @@ mpc:
         num_hidden_units: 128
     critic:
       use: "lstm"
+      algo: "js_gan"  # w_gan
       lstm:
         lstm_features: 64
         num_layers: 2
