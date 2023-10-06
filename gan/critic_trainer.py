@@ -82,8 +82,8 @@ def train(
     key,
     id,
 ):
-    if id < 3:
-        num_updates = 10  # warmup
+    if id < 5:
+        num_updates = 20  # warmup
 
     policy, opt = train_args
     key, subkey = jax.random.split(key)
