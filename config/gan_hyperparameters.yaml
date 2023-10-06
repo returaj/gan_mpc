@@ -64,7 +64,7 @@ mpc:
         num_layers: 2
         num_hidden_units: 128
     expert:
-      load_id: "1"
+      load_id: "0"
   train:
     num_epochs: 2
     print_after_n_epochs: 1
@@ -90,6 +90,8 @@ mpc:
       num_updates: 2
       batch_size: 64
       learning_rate: 1.0e-4
+      entropy_rate: 1.0e-3
+      grad_penalty_rate: 10.0
       no_grads: ["mpc_weights", "cost_params", "dynamics_params", "expert_params"]
   evaluate:
     max_interactions: 1000

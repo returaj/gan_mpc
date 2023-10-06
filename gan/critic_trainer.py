@@ -35,17 +35,21 @@ def get_pred_dataset(policy, params, pred_X):
 @functools.partial(jax.jit, static_argnums=0)
 def calculate_loss(policy, params, dataset):
     (_, true_y), (pred_x, _) = dataset
+    key = jax.random.PRNGKey(0)
+    keys = jax.random.split(key, true_y.shape[0])
     pred_y = get_pred_dataset(policy, params, pred_x)
-    losses = jax.vmap(policy.critic_loss, in_axes=(0, 0, None))(
-        true_y, pred_y, params
+    losses = jax.vmap(policy.critic_loss, in_axes=(0, 0, None, 0))(
+        true_y, pred_y, params, keys
     )
     return jnp.mean(losses)
 
 
 @functools.partial(jax.jit, static_argnums=0)
-def train_critic_parameters(train_args, opt_state, params, perm, dataset, key):
+def train_critic_parameters(train_args, opt_state, params, perm, key, dataset):
     policy, opt = train_args
     (_, true_Y), (pred_X, _) = dataset
+
+    batch_size = perm.shape[1]
 
     @jax.jit
     def body(carry, p):
@@ -53,8 +57,9 @@ def train_critic_parameters(train_args, opt_state, params, perm, dataset, key):
         key, subkey = jax.random.split(key)
         batch_true_y, batch_pred_x = true_Y[p], pred_X[p]
         batch_pred_y = get_pred_dataset(policy, params, batch_pred_x)
+        batch_key = jax.random.split(subkey, batch_size)
         loss, grads = policy.critic_loss_and_grad(
-            batch_true_y, batch_pred_y, params, subkey
+            batch_true_y, batch_pred_y, params, batch_key
         )
         updates, opt_state = opt.update(grads, opt_state, params)
         params = optax.apply_updates(params, updates)
@@ -77,7 +82,9 @@ def train(
     key,
     id,
 ):
-    del id
+    if id < 3:
+        num_updates = 10  # warmup
+
     policy, opt = train_args
     key, subkey = jax.random.split(key)
     true_train_data, true_test_data = true_dataset
