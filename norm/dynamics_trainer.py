@@ -155,7 +155,7 @@ def train(
         )
 
     if id < 5:
-        num_episodes = 3
+        num_episodes = 3  # warmup
 
     episode_rewards = []
     episode_train_losses = []
