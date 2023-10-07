@@ -26,12 +26,21 @@ def get_arguments():
     parser.add_argument("--horizon", type=int, default=10, help="mpc horizon")
     parser.add_argument("--history", type=int, default=5, help="mpc history")
     parser.add_argument(
+        "--normalizer",
+        type=str,
+        default="standard_norm",
+        help="do state normalization",
+    )
+    parser.add_argument(
         "--num_epochs", type=int, default=10, help="number of total epochs"
     )
     parser.add_argument(
         "--num_eval", type=int, default=3, help="number of evaluations"
     )
     parser.add_argument(
-        "--save_video", action="store_true", help="save one video"
+        "--save_video",
+        action="store_true",
+        default=False,
+        help="save one video",
     )
     return parser
