@@ -21,6 +21,7 @@ def update_mpc(config, args):
     mpc_config = config.mpc
     mpc_config.horizon = args.horizon
     mpc_config.history = args.history
+    mpc_config.normalizer.state = args.normalizer
     mpc_config.model.expert.load_id = args.expert_model
     mpc_config.train.num_epochs = args.num_epochs
     mpc_config.evaluate.num_runs_for_avg = args.num_eval
