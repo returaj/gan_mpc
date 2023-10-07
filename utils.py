@@ -293,8 +293,8 @@ def run_dm_policy(
 def avg_run_dm_policy(
     env, policy_fn, params, buffer, num_runs, max_interactions
 ):
-    avg_reward = 0.0
-    for run in range(1, num_runs + 1):
+    rewards = []
+    for _ in range(1, num_runs + 1):
         _, _, _, rwd_list = run_dm_policy(
             env=env,
             policy_fn=policy_fn,
@@ -302,8 +302,9 @@ def avg_run_dm_policy(
             buffer=buffer,
             max_interactions=max_interactions,
         )
-        avg_reward += (sum(rwd_list) - avg_reward) / run
-    return avg_reward
+        rewards.append(sum(rwd_list))
+    avg_reward, std_reward = np.mean(rewards), np.std(rewards)
+    return avg_reward, std_reward
 
 
 """Depricated

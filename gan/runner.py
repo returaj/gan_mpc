@@ -327,7 +327,7 @@ def run(config, dataset_path=None):
 
     (cost_train_losses, cost_test_losses) = cost_out_args
 
-    avg_reward = utils.avg_run_dm_policy(
+    avg_reward, std_reward = utils.avg_run_dm_policy(
         env=env,
         policy_fn=eval_policy.get_optimal_action,
         params=params,
@@ -353,7 +353,10 @@ def run(config, dataset_path=None):
                 "test_loss": round(critic_test_losses[-1], 5),
             },
         },
-        "reward": round(avg_reward, 2),
+        "eval": {
+            "avg_reward": round(avg_reward, 2),
+            "std_reward": round(std_reward, 2),
+        },
         "policy": policy_config.to_dict(),
     }
 
