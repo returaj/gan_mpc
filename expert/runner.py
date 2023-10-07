@@ -102,7 +102,7 @@ def run(config_path=None):
     buffer = data_buffers.Buffer(
         maxlen=train_config.seqlen, normalizer=dataloader.normalizer
     )
-    avg_reward = utils.avg_run_dm_policy(
+    avg_reward, std_reward = utils.avg_run_dm_policy(
         env=env,
         policy_fn=policy_fn,
         params=trainstate.params,
@@ -113,13 +113,17 @@ def run(config_path=None):
 
     save_config = {
         "env": config.env.to_dict(),
+        "normalizer": config.mpc.normalizer.to_dict(),
         "loss": {
             "train_loss": round(float(train_loss), 5),
             "test_loss": round(float(test_loss), 5),
         },
         "model": model_config.to_dict(),
         "train": train_config.to_dict(),
-        "avg_reward": round(avg_reward, 2),
+        "eval": {
+            "avg_reward": round(avg_reward, 2),
+            "std_reward": round(std_reward, 2),
+        },
     }
 
     dir_path = f"trained_models/expert/{env_type}/{env_name}/"
