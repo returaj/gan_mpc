@@ -36,7 +36,7 @@ mpc:
   normalizer:
     state: "standard_norm"  # option "standard_norm" or "identity"
     action: "identity" 
-  horizon: 5
+  horizon: 10
   history: 5   # need value >= 1
   model:
     cost:
@@ -59,7 +59,7 @@ mpc:
         num_hidden_units: 128
     critic:
       use: "lstm"
-      algo: "js_gan"  # w_gan
+      algo: "w_gan"  # w_gan or js_gan
       lstm:
         lstm_features: 64
         num_layers: 2
@@ -67,9 +67,9 @@ mpc:
     expert:
       load_id: "0"
   train:
-    num_epochs: 20
+    num_epochs: 10
     print_after_n_epochs: 1
-    num_trajectories: 5
+    num_trajectories: 10
     trajectory_len: 500
     cost:
       num_updates: 2
@@ -79,8 +79,8 @@ mpc:
       no_grads: ["dynamics_params", "critic_params", "expert_params"]
     dynamics:
       num_episodes: 1
-      max_interactions_per_episode: 200
-      replay_buffer_size: 1000
+      max_interactions_per_episode: 500
+      replay_buffer_size: 2_000
       num_updates: 1
       batch_size: 64
       learning_rate: 1.0e-4
@@ -96,7 +96,7 @@ mpc:
       no_grads: ["mpc_weights", "cost_params", "dynamics_params", "expert_params"]
   evaluate:
     max_interactions: 1000
-    num_runs_for_avg: 1
+    num_runs_for_avg: 5
     save_video: True
 
 
@@ -111,7 +111,7 @@ expert_prediction:
       num_layers: 3
       num_hidden_units: 128
   train:
-    num_epochs: 10
+    num_epochs: 50
     batch_size: 64
     seqlen: 10
     learning_rate: 1.0e-4
